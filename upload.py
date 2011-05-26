@@ -79,7 +79,7 @@ AUTH_ACCOUNT_TYPE = "GOOGLE"
 
 # URL of the default review server. As for AUTH_ACCOUNT_TYPE, this line could be
 # changed by the review server (see handler for upload.py).
-DEFAULT_REVIEW_SERVER = "codereview.appspot.com"
+DEFAULT_REVIEW_SERVER = "http://v5.u25-r4.sv2"
 
 # Max size of patch or base file.
 MAX_UPLOAD_SIZE = 900 * 1024
