@@ -3,15 +3,12 @@ RIETVELDREV=671
 default:
 	@echo "Run 'make all' to fetch required sources to run this example."
 
-all: static templates codereview django gae2django dev.db
+all: django gae2django dev.db
 	@echo "Run './manage.py runserver 127.0.0.1:8000' to run Rietveld."
 
 clean: clean_local clean_external
 
 clean_external: clean_rietveld clean_django
-
-clean_rietveld:
-	rm -rf codereview static templates upload.py
 
 clean_django:
 	unlink django
@@ -21,25 +18,10 @@ clean_local:
 	rm -f dev.db
 
 gae2django:
-	ln -s ../../gae2django .
+	ln -s ../django-gae2django/gae2django .
 
 dev.db:
 	./manage.py syncdb
 
-codereview:
-	svn co http://rietveld.googlecode.com/svn/trunk/codereview@$(RIETVELDREV)
-	patch -p0 < patches/download.link.diff
-
-static: upload.py
-	svn co http://rietveld.googlecode.com/svn/trunk/static@$(RIETVELDREV)
-
-upload.py:
-	svn export http://rietveld.googlecode.com/svn/trunk/upload.py@$(RIETVELDREV)
-	patch -p0 < patches/upload.diff
-
-templates:
-	svn co http://rietveld.googlecode.com/svn/trunk/templates@$(RIETVELDREV)
-	patch -p0 < patches/account-login-links.diff
-
 django:
-	ln -s ../../django .
+	ln -s ../django .
