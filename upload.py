@@ -34,6 +34,7 @@ against by using the '--rev' option.
 
 import ConfigParser
 import cookielib
+import errno
 import fnmatch
 import getpass
 import logging
@@ -1823,16 +1824,26 @@ def GuessVCSName(options):
     if attribute.startswith("p4") and value != None:
       return (VCS_PERFORCE, None)
 
+  def RunDetectCommand(vcs_type, command):
+    """Helper to detect VCS by executing command.
+
+    Returns:
+      A pair (vcs, output) or None. Throws exception on error.
+    """
+    try:
+      out, returncode = RunShellWithReturnCode(command)
+      if returncode == 0:
+        return (vcs_type, out.strip())
+    except OSError, (errcode, message):
+      if errcode != errno.ENOENT:  # command not found code
+        raise
+
   # Mercurial has a command to get the base directory of a repository
   # Try running it, but don't die if we don't have hg installed.
   # NOTE: we try Mercurial first as it can sit on top of an SVN working copy.
-  try:
-    out, returncode = RunShellWithReturnCode(["hg", "root"])
-    if returncode == 0:
-      return (VCS_MERCURIAL, out.strip())
-  except OSError, (errno, message):
-    if errno != 2:  # ENOENT -- they don't have hg installed.
-      raise
+  res = RunDetectCommand(VCS_MERCURIAL, ["hg", "root"])
+  if res != None:
+    return res
 
   # Subversion has a .svn in all working directories.
   if os.path.isdir('.svn'):
@@ -1841,14 +1852,10 @@ def GuessVCSName(options):
 
   # Git has a command to test if you're in a git tree.
   # Try running it, but don't die if we don't have git installed.
-  try:
-    out, returncode = RunShellWithReturnCode(["git", "rev-parse",
-                                              "--is-inside-work-tree"])
-    if returncode == 0:
-      return (VCS_GIT, None)
-  except OSError, (errno, message):
-    if errno != 2:  # ENOENT -- they don't have git installed.
-      raise
+  res = RunDetectCommand(VCS_GIT, ["git", "rev-parse",
+    "--is-inside-work-tree"])
+  if res != None:
+    return res
 
   return (VCS_UNKNOWN, None)
 
@@ -2031,9 +2038,6 @@ def RealMain(argv, data=None):
     The patchset id is None if the base files are not uploaded by this
     script (applies only to SVN checkouts).
   """
-  logging.basicConfig(format=("%(asctime).19s %(levelname)s %(filename)s:"
-                              "%(lineno)s %(message)s "))
-  os.environ['LC_ALL'] = 'C'
   options, args = parser.parse_args(argv[1:])
   global verbosity
   verbosity = options.verbose
@@ -2173,6 +2177,9 @@ def RealMain(argv, data=None):
 
 def main():
   try:
+    logging.basicConfig(format=("%(asctime).19s %(levelname)s %(filename)s:"
+                                "%(lineno)s %(message)s "))
+    os.environ['LC_ALL'] = 'C'
     RealMain(sys.argv)
   except KeyboardInterrupt:
     print
