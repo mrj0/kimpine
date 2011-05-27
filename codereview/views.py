@@ -1963,7 +1963,7 @@ def mailissue(request):
 
   Used by upload.py.
   """
-  if request.issue.owner != request.user:
+  if not request.issue.user_can_edit(request.user):
     if not IS_DEV:
       return HttpResponse('Login required', status=401)
   issue = request.issue
