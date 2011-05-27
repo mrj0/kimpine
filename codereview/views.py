@@ -696,15 +696,28 @@ def user_key_required(func):
 
   return user_key_wrapper
 
+def owner_required(func):
+  """Decorator that insists you own the issue.
+
+  It must appear after issue_required or equivalent, like patchset_required.
+  """
+
+  @login_required
+  def owner_wrapper(request, *args, **kwds):
+    if request.issue.owner != request.user:
+      return HttpResponseForbidden('You do not own this issue')
+    return func(request, *args, **kwds)
+
+  return owner_wrapper
+
+
 
 def issue_owner_required(func):
   """Decorator that processes the issue_id argument and insists you own it."""
 
-  @login_required
   @issue_required
+  @owner_required
   def issue_owner_wrapper(request, *args, **kwds):
-    if request.issue.owner != request.user:
-      return HttpResponseForbidden('You do not own this issue')
     return func(request, *args, **kwds)
 
   return issue_owner_wrapper
@@ -739,6 +752,17 @@ def patchset_required(func):
     return func(request, *args, **kwds)
 
   return patchset_wrapper
+
+def patchset_owner_required(func):
+  """Decorator that processes the patchset_id argument and insists you own the
+  issue."""
+
+  @patchset_required
+  @owner_required
+  def patchset_owner_wrapper(request, *args, **kwds):
+    return func(request, *args, **kwds)
+
+  return patchset_owner_wrapper
 
 def patch_required(func):
   """Decorator that processes the patch_id argument."""
@@ -1461,6 +1485,9 @@ def _add_patchset_from_form(request, issue, form, message_key='message',
     data_url = _get_data_url(form)
   if not form.is_valid():
     return None
+  if request.user != issue.owner:
+    # check already done at each call site, but check again for safety
+    return None
   data, url, separate_patches = data_url
   message = form.cleaned_data[message_key]
   patchset = models.PatchSet(issue=issue, message=message, data=data, url=url,
@@ -1886,8 +1913,7 @@ def delete(request):
 
 
 @post_required
-@issue_owner_required
-@patchset_required
+@patchset_owner_required
 @xsrf_required
 def delete_patchset(request):
   """/<issue>/patch/<patchset>/delete - Delete a patchset.
