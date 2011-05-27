@@ -737,19 +737,6 @@ def patchset_required(func):
 
   return patchset_wrapper
 
-def patchset_owner_required(func):
-  """Decorator to process the patchset_id argument and insists you own it."""
-
-  @login_required
-  @patchset_required
-  def patchset_owner_wrapper(request, *args, **kwds):
-    if request.patchset.owner != request.user:
-      return HttpResponseForbidden('You do not own this patchset')
-    return func(request, *args, **kwds)
-
-  return patchset_owner_wrapper
-
-
 def patch_required(func):
   """Decorator that processes the patch_id argument."""
 
@@ -1896,7 +1883,8 @@ def delete(request):
 
 
 @post_required
-@patchset_owner_required
+@issue_owner_required
+@patchset_required
 @xsrf_required
 def delete_patchset(request):
   """/<issue>/patch/<patchset>/delete - Delete a patchset.
