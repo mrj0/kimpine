@@ -6,7 +6,7 @@ default:
 all: django gae2django dev.db
 	@echo "Run './manage.py runserver 127.0.0.1:8000' to run Rietveld."
 
-clean: clean_local clean_external
+clean: clean_local clean_django
 
 clean_external: clean_rietveld clean_django
 
