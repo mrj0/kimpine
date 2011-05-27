@@ -1,0 +1,5 @@
+*.pyc
+dev.db
+django
+gae2django
+*.swp
