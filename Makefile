@@ -8,8 +8,6 @@ all: django gae2django dev.db
 
 clean: clean_local clean_django
 
-clean_external: clean_rietveld clean_django
-
 clean_django:
 	unlink django
 
