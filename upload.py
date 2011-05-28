@@ -1258,7 +1258,8 @@ class GitVCS(VersionControlSystem):
     env = os.environ.copy()
 
     if log_arg and not self.options.description:
-      self.options.description = RunShell(["git","log","--format=%B", log_arg], env=env)
+      self.options.description = RunShell(["git","log","--format=%B", log_arg], silent_ok=True,
+          env=env)
 
     # --no-ext-diff is broken in some versions of Git, so try to work around
     # this by overriding the environment (but there is still a problem if the
