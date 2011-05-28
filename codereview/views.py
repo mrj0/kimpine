@@ -1097,7 +1097,7 @@ def _show_user(request):
     query = models.Comment.all().filter('draft =', True)
     query = query.filter('author =', request.user).fetch(100)
     draft_keys = [d.parent_key().parent().parent() for d in query]
-    draft_issues = models.Issue.objects.filter(pk__in=[key.id for key in draft_keys])
+    draft_issues = models.Issue.objects.filter(pk__in=[key.id() for key in draft_keys])
   else:
     draft_issues = draft_keys = []
   my_issues = [issue for issue in db.GqlQuery(
