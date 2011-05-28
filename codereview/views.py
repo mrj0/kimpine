@@ -1093,26 +1093,35 @@ def show_user(request):
 
 def _show_user(request):
   user = request.user_to_show
+  if user == request.user:
+    query = models.Comment.all().filter('draft =', True)
+    query = query.filter('author =', request.user).fetch(100)
+    draft_keys = [d.parent_key().parent().parent() for d in query]
+    draft_issues = models.Issue.get(draft_keys)
+  else:
+    draft_issues = draft_keys = []
   my_issues = [issue for issue in db.GqlQuery(
       'SELECT * FROM Issue '
       'WHERE closed = FALSE AND owner = :1 ORDER BY modified DESC', user)
-      if _can_view_issue(request.user, issue)]
+      if issue.key() not in draft_keys and _can_view_issue(request.user, issue)]
   review_issues = [issue for issue in db.GqlQuery(
       'SELECT * FROM Issue '
       'WHERE closed = FALSE AND reviewers = :1 '
       'ORDER BY modified DESC', user.email().lower())
-      if issue.owner != user and _can_view_issue(request.user, issue)]
+      if (issue.key() not in draft_keys and issue.owner != user
+          and _can_view_issue(request.user, issue))]
   closed_issues = [issue for issue in db.GqlQuery(
       'SELECT * FROM Issue '
       'WHERE closed = TRUE AND modified > :1 AND owner = :2 '
       'ORDER BY modified DESC',
       datetime.datetime.now() - datetime.timedelta(days=7), user)
-      if _can_view_issue(request.user, issue)]
+      if issue.key() not in draft_keys and _can_view_issue(request.user, issue)]
   cc_issues = [issue for issue in db.GqlQuery(
       'SELECT * FROM Issue '
       'WHERE closed = FALSE AND cc = :1 '
       'ORDER BY modified DESC', user.email())
-      if issue.owner != user and _can_view_issue(request.user, issue)]
+      if (issue.key() not in draft_keys and issue.owner != user
+          and _can_view_issue(request.user, issue))]
 
   all_issues = my_issues + review_issues + closed_issues + cc_issues
   _load_users_for_issues(all_issues)
@@ -1123,6 +1132,7 @@ def _show_user(request):
                   'review_issues': review_issues,
                   'closed_issues': closed_issues,
                   'cc_issues': cc_issues,
+                  'draft_issues': draft_issues,
                   })
 
 
