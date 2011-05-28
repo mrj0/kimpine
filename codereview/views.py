@@ -2152,6 +2152,7 @@ def _issue_as_dict(issue, messages, request=None):
         'recipients': m.recipients,
         'date': str(m.date),
         'text': m.text,
+        'approval': m.approval,
       }
       for m in models.Message.gql('WHERE ANCESTOR IS :1', issue)
     ]

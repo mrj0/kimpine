@@ -109,9 +109,10 @@
     </div>
 
     {%for message in messages%}
-      <div class="message" id="msg-{{message.key}}"
-	   name="{{forloop.counter0}}">
-	<a name="msg-{{message.key}}"></a>
+      <div class="message {%if message.approval%}approval{%endif%}"
+           id="msg-{{message.key}}"
+	         name="{{forloop.counter0}}">
+	      <a name="msg-{{message.key}}"></a>
         <div class="header">
           <table border="0" width="100%" cellspacing="0" cellpadding="0">
             <tr class="comment_title"
