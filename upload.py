@@ -1242,8 +1242,8 @@ class GitVCS(VersionControlSystem):
         extra_args = [self.options.revision] + extra_args
 
     #add commit messages to issue message
+    log_arg = None
     if extra_args:
-      log_arg = None
       if len(extra_args) == 1:
         if ".." in extra_args[0]:
           log_arg = extra_args[0]
