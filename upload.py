@@ -25,6 +25,7 @@ Supported version control systems:
   Mercurial
   Subversion
   Perforce
+  CVS
 
 It is important for Git/Mercurial users to specify a tree/node/branch to diff
 against by using the '--rev' option.
@@ -80,7 +81,7 @@ AUTH_ACCOUNT_TYPE = "GOOGLE"
 
 # URL of the default review server. As for AUTH_ACCOUNT_TYPE, this line could be
 # changed by the review server (see handler for upload.py).
-DEFAULT_REVIEW_SERVER = "http://v5.u25-r4.sv2"
+DEFAULT_REVIEW_SERVER = "v5.u25-r4.sv2"
 
 # Max size of patch or base file.
 MAX_UPLOAD_SIZE = 900 * 1024
@@ -90,6 +91,7 @@ VCS_GIT = "Git"
 VCS_MERCURIAL = "Mercurial"
 VCS_SUBVERSION = "Subversion"
 VCS_PERFORCE = "Perforce"
+VCS_CVS = "CVS"
 VCS_UNKNOWN = "Unknown"
 
 # whitelist for non-binary filetypes which do not start with "text/"
@@ -106,6 +108,7 @@ VCS_ABBREVIATIONS = {
   VCS_PERFORCE.lower(): VCS_PERFORCE,
   "p4": VCS_PERFORCE,
   VCS_GIT.lower(): VCS_GIT,
+  VCS_CVS.lower(): VCS_CVS,
 }
 
 # The result of parsing Subversion's [auto-props] setting.
@@ -314,8 +317,14 @@ class AbstractRpcServer(object):
       except ClientLoginError, e:
         print >>sys.stderr, ''
         if e.reason == "BadAuthentication":
-          print >>sys.stderr, "Invalid username or password."
-          continue
+          if e.info == "InvalidSecondFactor":
+            print >>sys.stderr, (
+                "Use an application-specific password instead "
+                "of your regular account password.\n"
+                "See http://www.google.com/"
+                "support/accounts/bin/answer.py?answer=185833")
+          else:
+            print >>sys.stderr, "Invalid username or password."
         elif e.reason == "CaptchaRequired":
           print >>sys.stderr, (
               "Please go to\n"
@@ -331,13 +340,14 @@ class AbstractRpcServer(object):
           print >>sys.stderr, "The user account has been deleted."
         elif e.reason == "AccountDisabled":
           print >>sys.stderr, "The user account has been disabled."
+          break
         elif e.reason == "ServiceDisabled":
           print >>sys.stderr, ("The user's access to the service has been "
                                "disabled.")
         elif e.reason == "ServiceUnavailable":
           print >>sys.stderr, "The service is not available; try again later."
         else:
-          # unknown error
+          # Unknown error.
           raise
         print >>sys.stderr, ''
         continue
@@ -367,8 +377,7 @@ class AbstractRpcServer(object):
     """
     # TODO: Don't require authentication.  Let the server say
     # whether it is necessary.
-    # Skip this check for Django, we need a 401 to get the login
-    # URL (could be anywhere...).
+    # # Skip this check for Django, we need a 401 to get the login URL (could be anywhere)
     #if not self.authenticated:
     #  self._Authenticate()
 
@@ -414,7 +423,7 @@ class AbstractRpcServer(object):
 class HttpRpcServer(AbstractRpcServer):
   """Provides a simplified RPC-style interface for HTTP requests."""
 
-  def _Authenticate(self, login_url="/accounts/login/"):
+  def _Authenticate(self, login_url="/accounts/login"):
     """Save the cookie jar after authentication."""
     login_url = "%s%s" % (self.host, login_url)
     print "Login URL: %r" % login_url
@@ -706,10 +715,10 @@ def GetContentType(filename):
 # Use a shell for subcommands on Windows to get a PATH search.
 use_shell = sys.platform.startswith("win")
 
-def RunShellWithReturnCode(command, print_output=False,
+def RunShellWithReturnCodeAndStderr(command, print_output=False,
                            universal_newlines=True,
                            env=os.environ):
-  """Executes a command and returns the output from stdout and the return code.
+  """Executes a command and returns the output from stdout, stderr and the return code.
 
   Args:
     command: Command to execute.
@@ -718,9 +727,11 @@ def RunShellWithReturnCode(command, print_output=False,
     universal_newlines: Use universal_newlines flag (default: True).
 
   Returns:
-    Tuple (output, return code)
+    Tuple (stdout, stderr, return code)
   """
   logging.info("Running %s", command)
+  env = env.copy()
+  env['LC_MESSAGES'] = 'C'
   p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                        shell=use_shell, universal_newlines=universal_newlines,
                        env=env)
@@ -741,8 +752,15 @@ def RunShellWithReturnCode(command, print_output=False,
     print >>sys.stderr, errout
   p.stdout.close()
   p.stderr.close()
-  return output, p.returncode
+  return output, errout, p.returncode
 
+def RunShellWithReturnCode(command, print_output=False,
+                           universal_newlines=True,
+                           env=os.environ):
+  """Executes a command and returns the output from stdout and the return code."""
+  out, err, retcode = RunShellWithReturnCodeAndStderr(command, print_output,
+                           universal_newlines, env)
+  return out, retcode
 
 def RunShell(command, silent_ok=False, universal_newlines=True,
              print_output=False, env=os.environ):
@@ -1044,10 +1062,16 @@ class SubversionVCS(VersionControlSystem):
       dirname, relfilename = os.path.split(filename)
       if dirname not in self.svnls_cache:
         cmd = ["svn", "list", "-r", self.rev_start, dirname or "."]
-        out, returncode = RunShellWithReturnCode(cmd)
+        out, err, returncode = RunShellWithReturnCodeAndStderr(cmd)
         if returncode:
-          ErrorExit("Failed to get status for %s." % filename)
-        old_files = out.splitlines()
+          # Directory might not yet exist at start revison
+          # svn: Unable to find repository location for 'abc' in revision nnn
+          if re.match('^svn: Unable to find repository location for .+ in revision \d+', err):
+            old_files = ()
+          else:
+            ErrorExit("Failed to get status for %s:\n%s" % (filename, err))
+        else:
+          old_files = out.splitlines()
         args = ["svn", "list"]
         if self.rev_end:
           args += ["-r", self.rev_end]
@@ -1264,7 +1288,6 @@ class GitVCS(VersionControlSystem):
     # --no-ext-diff is broken in some versions of Git, so try to work around
     # this by overriding the environment (but there is still a problem if the
     # git config key "diff.external" is used).
-
     if 'GIT_EXTERNAL_DIFF' in env: del env['GIT_EXTERNAL_DIFF']
     return RunShell(["git", "diff", "--no-ext-diff", "--full-index", "-M"]
                     + extra_args, env=env)
@@ -1317,6 +1340,72 @@ class GitVCS(VersionControlSystem):
 
     return (base_content, new_content, is_binary, status)
 
+
+class CVSVCS(VersionControlSystem):
+  """Implementation of the VersionControlSystem interface for CVS."""
+
+  def __init__(self, options):
+    super(CVSVCS, self).__init__(options)
+
+  def GetOriginalContent_(self, filename):
+    RunShell(["cvs", "up", filename], silent_ok=True)
+    # TODO need detect file content encoding
+    content = open(filename).read()
+    return content.replace("\r\n", "\n")
+
+  def GetBaseFile(self, filename):
+    base_content = None
+    new_content = None
+    is_binary = False
+    status = "A"
+
+    output, retcode = RunShellWithReturnCode(["cvs", "status", filename])
+    if retcode:
+      ErrorExit("Got error status from 'cvs status %s'" % filename)
+
+    if output.find("Status: Locally Modified") != -1:
+      status = "M"
+      temp_filename = "%s.tmp123" % filename
+      os.rename(filename, temp_filename)
+      base_content = self.GetOriginalContent_(filename)
+      os.rename(temp_filename, filename)
+    elif output.find("Status: Locally Added"):
+      status = "A"
+      base_content = ""
+    elif output.find("Status: Needs Checkout"):
+      status = "D"
+      base_content = self.GetOriginalContent_(filename)
+
+    return (base_content, new_content, is_binary, status)
+
+  def GenerateDiff(self, extra_args):
+    cmd = ["cvs", "diff", "-u", "-N"]
+    if self.options.revision:
+      cmd += ["-r", self.options.revision]
+
+    cmd.extend(extra_args)
+    data, retcode = RunShellWithReturnCode(cmd)
+    count = 0
+    if retcode in [0, 1]:
+      for line in data.splitlines():
+        if line.startswith("Index:"):
+          count += 1
+          logging.info(line)
+
+    if not count:
+      ErrorExit("No valid patches found in output from cvs diff")
+
+    return data
+
+  def GetUnknownFiles(self):
+    data, retcode = RunShellWithReturnCode(["cvs", "diff"])
+    if retcode not in [0, 1]:
+      ErrorExit("Got error status from 'cvs diff':\n%s" % (data,))
+    unknown_files = []
+    for line in data.split("\n"):
+      if line and line[0] == "?":
+        unknown_files.append(line)
+    return unknown_files
 
 class MercurialVCS(VersionControlSystem):
   """Implementation of the VersionControlSystem interface for Mercurial."""
@@ -1814,7 +1903,8 @@ def GuessVCSName(options):
 
   Returns:
     A pair (vcs, output).  vcs is a string indicating which VCS was detected
-    and is one of VCS_GIT, VCS_MERCURIAL, VCS_SUBVERSION, or VCS_UNKNOWN.
+    and is one of VCS_GIT, VCS_MERCURIAL, VCS_SUBVERSION, VCS_PERFORCE,
+    VCS_CVS, or VCS_UNKNOWN.
     Since local perforce repositories can't be easily detected, this method
     will only guess VCS_PERFORCE if any perforce options have been specified.
     output is a string containing any interesting output from the vcs
@@ -1828,7 +1918,7 @@ def GuessVCSName(options):
     """Helper to detect VCS by executing command.
 
     Returns:
-      A pair (vcs, output) or None. Throws exception on error.
+       A pair (vcs, output) or None. Throws exception on error.
     """
     try:
       out, returncode = RunShellWithReturnCode(command)
@@ -1853,7 +1943,12 @@ def GuessVCSName(options):
   # Git has a command to test if you're in a git tree.
   # Try running it, but don't die if we don't have git installed.
   res = RunDetectCommand(VCS_GIT, ["git", "rev-parse",
-    "--is-inside-work-tree"])
+                                   "--is-inside-work-tree"])
+  if res != None:
+    return res
+
+  # detect CVS repos use `cvs status && $? == 0` rules
+  res = RunDetectCommand(VCS_CVS, ["cvs", "status"])
   if res != None:
     return res
 
@@ -1893,6 +1988,8 @@ def GuessVCS(options):
     return PerforceVCS(options)
   elif vcs == VCS_GIT:
     return GitVCS(options)
+  elif vcs == VCS_CVS:
+    return CVSVCS(options)
 
   ErrorExit(("Could not guess version control system. "
              "Are you in a working copy directory?"))
@@ -2189,3 +2286,4 @@ def main():
 
 if __name__ == "__main__":
   main()
+
