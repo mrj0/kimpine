@@ -129,9 +129,8 @@ class Issue(db.Model):
 
   def _get_num_comments(self):
     """Helper to compute the number of comments through a query."""
-    return gql(Comment,
-               'WHERE ANCESTOR IS :1 AND draft = FALSE',
-               self).count()
+    return Comment.objects.filter(patch__patchset__issue__exact=self,
+                                  draft__exact=False).count()
 
   _num_drafts = None
 
@@ -146,9 +145,9 @@ class Issue(db.Model):
       if account is None:
         self._num_drafts = 0
       else:
-        query = gql(Comment,
-            'WHERE ANCESTOR IS :1 AND author = :2 AND draft = TRUE',
-            self, account.user)
+        query = Comment.objects.filter(patch__patchset__issue__exact=self,
+                                       author__exact=account.user,
+                                       draft__exact=True)
         self._num_drafts = query.count()
     return self._num_drafts
 
@@ -332,9 +331,8 @@ class Patch(db.Model):
     The value is cached.
     """
     if self._num_comments is None:
-      self._num_comments = gql(Comment,
-                               'WHERE patch = :1 AND draft = FALSE',
-                               self).count()
+      self._num_comments = Comment.objects.filter(patch__exact=self,
+                                                  draft__exact=False).count()
     return self._num_comments
 
   _num_drafts = None
@@ -350,9 +348,9 @@ class Patch(db.Model):
       if account is None:
         self._num_drafts = 0
       else:
-        query = gql(Comment,
-                    'WHERE patch = :1 AND draft = TRUE AND author = :2',
-                    self, account.user)
+        query = Comment.objects.filter(patch__exact=self,
+                                       draft__exact=True,
+                                       author__exact=account.user)
         self._num_drafts = query.count()
     return self._num_drafts
 
@@ -600,9 +598,8 @@ class Account(db.Model):
     name = nickname = user.email().split('@', 1)[0]
     next_char = chr(ord(nickname[0].lower())+1)
     existing_nicks = [account.lower_nickname
-                      for account in cls.gql(('WHERE lower_nickname >= :1 AND '
-                                              'lower_nickname < :2'),
-                                             nickname.lower(), next_char)]
+                      for account in cls.objects.filter(lower_nickname__gte=nickname.lower(),
+                                                        lower_nickname__lt=next_char)]
     suffix = 0
     while nickname.lower() in existing_nicks:
       suffix += 1
@@ -762,9 +759,8 @@ class Account(db.Model):
     # We're looking for the Issue key id.  The ancestry of comments goes:
     # Issue -> PatchSet -> Patch -> Comment.
     issue_ids = set(comment.key().parent().parent().parent().id()
-                    for comment in gql(Comment,
-                                       'WHERE author = :1 AND draft = TRUE',
-                                       self.user))
+                    for comment in Comment.objects.filter(author__exact=self.user,
+                                                          draft__exact=True))
     self._drafts = list(issue_ids)
     ##logging.info('INITIALIZED: %s -> %s', self.email, self._drafts)
     return True

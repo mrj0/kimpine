@@ -1062,13 +1062,10 @@ def all(request):
     nav_parameters['closed'] = '1'
 
   if closed:
-    query = db.GqlQuery('SELECT * FROM Issue '
-                        'WHERE private = FALSE '
-                        'ORDER BY modified DESC')
+    query = models.Issue.objects.filter(private__exact=False).order_by('-modified')
   else:
-    query = db.GqlQuery('SELECT * FROM Issue '
-                        'WHERE closed = FALSE AND private = FALSE '
-                        'ORDER BY modified DESC')
+    query = models.Issue.objects.filter(private__exact=False,
+                                        closed__exact=False).order_by('-modified')
 
   return _paginate_issues(reverse(all),
                           request,
@@ -1140,32 +1137,28 @@ def show_user(request):
 def _show_user(request):
   user = request.user_to_show
   if user == request.user:
-    query = models.Comment.all().filter('draft =', True)
-    query = query.filter('author =', request.user).fetch(100)
+    query = models.Comment.objects.filter(draft__exact=True, author__exact=request.user)[:100]
     draft_keys = set(d.parent_key().parent().parent() for d in query)
     draft_issues = models.Issue.objects.filter(pk__in=[key.id() for key in draft_keys])
   else:
     draft_issues = draft_keys = []
-  my_issues = [issue for issue in db.GqlQuery(
-      'SELECT * FROM Issue '
-      'WHERE closed = FALSE AND owner = :1 ORDER BY modified DESC', user)
+  my_issues = [issue for issue in
+      models.Issue.objects.filter(closed__exact=False,
+                                  owner__exact=user).order_by('-modified')
       if issue.key() not in draft_keys and _can_view_issue(request.user, issue)]
-  review_issues = [issue for issue in db.GqlQuery(
-      'SELECT * FROM Issue '
-      'WHERE closed = FALSE AND reviewers = :1 '
-      'ORDER BY modified DESC', user.email().lower())
+  review_issues = [issue for issue in
+      models.Issue.objects.filter(closed__exact=False,
+                                  reviewers__exact=user.email().lower()).order_by('-modified')
       if (issue.key() not in draft_keys and issue.owner != user
           and _can_view_issue(request.user, issue))]
-  closed_issues = [issue for issue in db.GqlQuery(
-      'SELECT * FROM Issue '
-      'WHERE closed = TRUE AND modified > :1 AND owner = :2 '
-      'ORDER BY modified DESC',
-      datetime.datetime.now() - datetime.timedelta(days=7), user)
+  closed_issues = [issue for issue in
+      models.Issue.objects.filter(closed__exact=True,
+                                  modified__gt=datetime.datetime.now() - datetime.timedelta(days=7),
+                                  owner__exact=user).order_by('-modified')
       if issue.key() not in draft_keys and _can_view_issue(request.user, issue)]
-  cc_issues = [issue for issue in db.GqlQuery(
-      'SELECT * FROM Issue '
-      'WHERE closed = FALSE AND cc = :1 '
-      'ORDER BY modified DESC', user.email())
+  cc_issues = [issue for issue in
+      models.Issue.objects.filter(closed__exact=False,
+                                  cc__exact=user.email()).order_by('-modified')
       if (issue.key() not in draft_keys and issue.owner != user
           and _can_view_issue(request.user, issue))]
 
@@ -1717,12 +1710,12 @@ def _get_patchset_info(request, patchset_id):
     patchset_id = patchsets[-1].key().id()
 
   if request.user:
-    drafts = models.Comment.objects.filter(patch__exact=issue,
+    drafts = models.Comment.objects.filter(patch__patchset__issue__exact=issue,
                                            draft__exact=True,
                                            author__exact=request.user)
   else:
     drafts = []
-  comments = models.Comment.objects.filter(patch__exact=issue,
+  comments = models.Comment.objects.filter(patch__patchset__issue__exact=issue,
                                            draft__exact=False)
   issue.draft_count = len(drafts)
   for c in drafts:
@@ -2644,8 +2637,7 @@ def _add_next_prev(patchset, patch):
 def _add_next_prev2(ps_left, ps_right, patch_right):
   """Helper to add .next and .prev attributes to a patch object."""
   patch_right.prev = patch_right.next = None
-  patches = list(models.Patch.gql("WHERE patchset = :1 ORDER BY filename",
-                                  ps_right))
+  patches = models.Patch.objects.filter(patchset__exact=ps_right).order_by('filename')
   ps_right.patches = patches  # Required to render the jump to select.
 
   n_comments, n_drafts = _get_comment_counts(
@@ -2764,10 +2756,9 @@ def _inline_draft(request):
     # The actual count doesn't matter, just that there's at least one.
     models.Account.current_user_account.update_drafts(issue, 1)
 
-  query = models.Comment.gql(
-      'WHERE patch = :patch AND lineno = :lineno AND left = :left '
-      'ORDER BY date',
-      patch=patch, lineno=lineno, left=left)
+  query = models.Comment.objects.filter(patch__exact=patch,
+                                        lineno__exact=lineno,
+                                        left__exact=left).order_by('date')
   comments = list(c for c in query if not c.draft or c.author == request.user)
   if comment is not None and comment.author is None:
     # Show anonymous draft even though we don't save it
@@ -2830,8 +2821,8 @@ def _get_mail_template(request, issue):
   context = {}
   template = 'mails/comment.txt'
   if request.user == issue.owner:
-    if db.GqlQuery('SELECT * FROM Message WHERE ANCESTOR IS :1 AND sender = :2',
-                   issue, db.Email(request.user.email())).count(1) == 0:
+    if not models.Message.filter(issue__exact=issue,
+                                 sender__exact=db.Email(request.user.email())).exists():
       template = 'mails/review.txt'
       files, patch = _get_affected_files(issue)
       context.update({'files': files, 'patch': patch, 'base': issue.base})
@@ -2850,10 +2841,10 @@ def publish(request):
     form_class = MiniPublishForm
   draft_message = None
   if not request.POST.get('message_only', None):
-    query = models.Message.gql(('WHERE issue = :1 AND sender = :2 '
-                                'AND draft = TRUE'), issue,
-                               request.user.email())
-    draft_message = query.get()
+    query = models.Message.objects.filter(issue__exact=issue,
+                                          sender__exact=request.user.email(),
+                                          draft__exact=True)
+    draft_message = _first_or_none(query)
   if request.method != 'POST':
     reviewers = issue.reviewers[:]
     cc = issue.cc[:]
@@ -2960,9 +2951,9 @@ def _get_draft_comments(request, issue, preview=False):
   tbd = []
   # XXX Should request all drafts for this issue once, now we can.
   for patchset in issue.patchset_set.order('created'):
-    ps_comments = list(models.Comment.gql(
-        'WHERE ANCESTOR IS :1 AND author = :2 AND draft = TRUE',
-        patchset, request.user))
+    ps_comments = models.Comment.filter(patchset__exact=patchset,
+                                        author__exact=request.user,
+                                        draft__exact=True)
     if ps_comments:
       patches = dict((p.key(), p) for p in patchset.patch_set)
       for p in patches.itervalues():
@@ -3165,13 +3156,10 @@ def draft_message(request):
   time out after 1 or 2 hours.  The final submit of the drafts for
   others to view *is* XSRF-protected.
   """
-  query = models.Message.gql(('WHERE issue = :1 AND sender = :2 '
-                              'AND draft = TRUE'),
-                             request.issue, request.user.email())
-  if query.count() == 0:
-    draft_message = None
-  else:
-    draft_message = query.get()
+  query = models.Message.objects.filter(issue__exact=request.issue,
+                                        sender__exact=request.user.email(),
+                                        draft__exact=True)
+  draft_message = _first_or_none(query)
   if request.method == 'GET':
     return _get_draft_message(request, draft_message)
   elif request.method == 'POST':
@@ -3295,14 +3283,14 @@ def search(request):
 def repos(request):
   """/repos - Show the list of known Subversion repositories."""
   # Clean up garbage created by buggy edits
-  bad_branches = list(models.Branch.gql('WHERE owner = :1', None))
+  bad_branches = models.Branch.objects.filter(owner__exact=None)
   if bad_branches:
     db.delete(bad_branches)
   repo_map = {}
-  for repo in list(models.Repository.all()):
+  for repo in models.Repository.objects.all():
     repo_map[str(repo.key())] = repo
   branches = []
-  for branch in list(models.Branch.gql('ORDER BY repo, category, name')):
+  for branch in models.Branch.objects.order_by('repo','category','name'):
     branch.repository = repo_map[str(branch._repo)]
     branches.append(branch)
   return respond(request, 'repos.html', {'branches': branches})
@@ -3349,13 +3337,13 @@ BRANCHES = [
 @admin_required
 def repo_init(request):
   """/repo_init - Initialze the list of known Subversion repositories."""
-  python = models.Repository.gql("WHERE name = 'Python'").get()
+  python = _first_or_none(models.Repository.objects.filter(name__exact='Python'))
   if python is None:
     python = models.Repository(name='Python', url=SVN_ROOT)
     python.put()
     pybranches = []
   else:
-    pybranches = list(models.Branch.gql('WHERE repo = :1', python))
+    pybranches = models.Branch.objects.filter(repo__exact=python)
   for category, name, url in BRANCHES:
     url = python.url + url
     for br in pybranches:
@@ -3431,7 +3419,7 @@ def branch_delete(request, branch_id):
     return HttpResponseForbidden('You do not own this branch')
   repo = branch.repo
   branch.delete()
-  num_branches = models.Branch.gql('WHERE repo = :1', repo).count()
+  num_branches = models.Branch.objects.filter(repo__exact=repo).count()
   if not num_branches:
     # Even if we don't own the repository?  Yes, I think so!  Empty
     # repositories have no representation on screen.
@@ -3518,14 +3506,12 @@ def _user_popup(request):
   user = request.user_to_show
   popup_html = memcache.get('user_popup:' + user.email())
   if popup_html is None:
-    num_issues_created = db.GqlQuery(
-      'SELECT * FROM Issue '
-      'WHERE closed = FALSE AND owner = :1',
-      user).count()
-    num_issues_reviewed = db.GqlQuery(
-      'SELECT * FROM Issue '
-      'WHERE closed = FALSE AND reviewers = :1',
-      user.email()).count()
+    num_issues_created = models.Issue.objects.filter(
+        closed__exact=False,
+        owner__exact=user).count()
+    num_issues_reviewed = models.Issue.objects.filter(
+        closed__exact=False,
+        reviewers__contains=user.email()).count()
 
     user.nickname = models.Account.get_nickname_for_email(user.email())
     popup_html = render_to_response('user_popup.html',
