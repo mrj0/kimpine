@@ -141,7 +141,7 @@ class IssueBaseForm(forms.Form):
   private = forms.BooleanField(required=False, initial=False)
 
   def set_branch_choices(self, base=None):
-    branches = models.Branch.gql('ORDER BY repo, category, name')
+    branches = models.Branch.objects.order_by('repo','category','name')
     bound_field = self['branch']
     choices = []
     default = None
@@ -365,8 +365,7 @@ class SettingsForm(forms.Form):
       raise forms.ValidationError('Choose a different nickname.')
 
     # Look for existing nicknames
-    accounts = list(models.Account.gql('WHERE lower_nickname = :1',
-                                       nickname.lower()))
+    accounts = models.Account.objects.filter(lower_nickname__exact=nickname.lower())
     for account in accounts:
       if account.key() == models.Account.current_user_account.key():
         continue
@@ -824,8 +823,8 @@ def patch_filename_required(func):
 
   @patchset_required
   def patch_wrapper(request, patch_filename, *args, **kwds):
-    patch = models.Patch.gql('WHERE patchset = :1 AND filename = :2',
-                             request.patchset, patch_filename).get()
+    patch = models.Patch.objects.filter(patchset__exact=request.patchset,
+                                        filename__exact=patch_filename)[0]
     if patch is None and patch_filename.isdigit():
       # It could be an old URL which has a patch ID instead of a filename
       patch = models.Patch.get_by_id(int(patch_filename),
@@ -1712,13 +1711,13 @@ def _get_patchset_info(request, patchset_id):
     patchset_id = patchsets[-1].key().id()
 
   if request.user:
-    drafts = list(models.Comment.gql('WHERE ANCESTOR IS :1 AND draft = TRUE'
-                                     '  AND author = :2',
-                                     issue, request.user))
+    drafts = models.Comment.objects.filter(patch__exact=issue,
+                                           draft__exact=True,
+                                           author__exact=request.user)
   else:
     drafts = []
-  comments = list(models.Comment.gql('WHERE ANCESTOR IS :1 AND draft = FALSE',
-                                     issue))
+  comments = models.Comment.objects.filter(patch__exact=issue,
+                                           draft__exact=False)
   issue.draft_count = len(drafts)
   for c in drafts:
     c.ps_key = c.patch.patchset.key()
