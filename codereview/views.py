@@ -522,6 +522,10 @@ def respond(request, template, params=None):
     library.user_cache.clear() # don't want this sticking around
 
 
+def _first_or_none(query_set):
+  return query_set[0] if query_set else None
+
+
 def _random_bytes(n):
   """Helper returning a string of random bytes of given length."""
   return ''.join(map(chr, (random.randrange(256) for i in xrange(n))))
@@ -825,8 +829,8 @@ def patch_filename_required(func):
 
   @patchset_required
   def patch_wrapper(request, patch_filename, *args, **kwds):
-    patch = models.Patch.objects.filter(patchset__exact=request.patchset,
-                                        filename__exact=patch_filename)[0]
+    patch = _first_or_none(models.Patch.objects.filter(patchset__exact=request.patchset,
+                                                       filename__exact=patch_filename))
     if patch is None and patch_filename.isdigit():
       # It could be an old URL which has a patch ID instead of a filename
       patch = models.Patch.get_by_id(int(patch_filename),
@@ -2464,8 +2468,8 @@ def _get_diff2_data(request, ps_left_id, ps_right_id, patch_id, context,
     if patch_filename is None:
       patch_filename = patch_right.filename
   # Now find the corresponding patch in ps_left
-  patch_left = models.Patch.objects.filter(patchset__exact=ps_left,
-                                           filename__exact=patch_filename)[0]
+  patch_left = _first_or_none(models.Patch.objects.filter(patchset__exact=ps_left,
+                                                          filename__exact=patch_filename))
 
   if patch_left:
     try:
@@ -2512,8 +2516,8 @@ def diff2(request, ps_left_id, ps_right_id, patch_filename):
   patch_right = None
 
   if ps_right:
-    patch_right = models.Patch.gql('WHERE patchset = :1 AND filename = :2',
-                                   ps_right, patch_filename).get()
+    patch_right = _first_or_none(models.Patch.objects.filter(patchset__exact=ps_right,
+                                                             filename__exact=patch_filename))
 
   if patch_right:
     patch_id = patch_right.key().id()
@@ -2598,8 +2602,7 @@ def _get_comment_counts(account, patchset):
 def _add_next_prev(patchset, patch):
   """Helper to add .next and .prev attributes to a patch object."""
   patch.prev = patch.next = None
-  patches = list(models.Patch.gql("WHERE patchset = :1 ORDER BY filename",
-                                  patchset))
+  patches = models.Patch.objects.filter(patchset__exact=patchset).order_by('filename')
   patchset.patches = patches  # Required to render the jump to select.
 
   comments_by_patch, drafts_by_patch = _get_comment_counts(
