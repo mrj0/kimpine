@@ -2201,7 +2201,7 @@ def _issue_as_dict(issue, messages, request=None):
         'text': m.text,
         'approval': m.approval,
       }
-      for m in models.Message.gql('WHERE ANCESTOR IS :1', issue)
+      for m in models.Message.objects.filter(issue__exact=issue)
     ]
   return values
 
@@ -2220,7 +2220,7 @@ def _patchset_as_dict(patchset, request=None):
     'num_comments': patchset.num_comments,
     'files': {},
   }
-  for patch in models.Patch.gql("WHERE patchset = :1", patchset):
+  for patch in models.Patch.objects.filter(patchset__exact=patchset):
     # num_comments and num_drafts are left out for performance reason:
     # they cause a datastore query on first access. They could be added
     # optionally if the need ever arises.
@@ -2464,8 +2464,8 @@ def _get_diff2_data(request, ps_left_id, ps_right_id, patch_id, context,
     if patch_filename is None:
       patch_filename = patch_right.filename
   # Now find the corresponding patch in ps_left
-  patch_left = models.Patch.gql('WHERE patchset = :1 AND filename = :2',
-                                ps_left, patch_filename).get()
+  patch_left = models.Patch.objects.filter(patchset__exact=ps_left,
+                                           filename__exact=patch_filename)[0]
 
   if patch_left:
     try:
