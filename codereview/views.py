@@ -561,6 +561,7 @@ def _can_view_issue(user, issue):
           or user_email in issue.reviewers)
 
 
+# DEFUNCT CURRENTLY
 def _notify_issue(request, issue, message):
   """Try sending an XMPP (chat) message.
 
@@ -574,6 +575,7 @@ def _notify_issue(request, issue, message):
   Returns:
     True if the message was (apparently) delivered, False if not.
   """
+  return
   iid = issue.key().id()
   emails = [issue.owner.email()]
   if issue.reviewers:
