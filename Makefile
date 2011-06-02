@@ -6,7 +6,7 @@ default:
 all: django gae2django dev.db
 	@echo "Run './manage.py runserver 127.0.0.1:8000' to run Rietveld."
 
-clean: clean_local clean_django
+clean: clean_local clean_django clean_pyc
 
 clean_django:
 	unlink django
@@ -14,6 +14,9 @@ clean_django:
 clean_local:
 	unlink gae2django
 	rm -f dev.db
+
+clean_pyc:
+	find . -name "*.pyc" | xargs rm
 
 gae2django:
 	ln -s ../django-gae2django/gae2django .
