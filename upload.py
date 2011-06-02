@@ -423,7 +423,7 @@ class AbstractRpcServer(object):
 class HttpRpcServer(AbstractRpcServer):
   """Provides a simplified RPC-style interface for HTTP requests."""
 
-  def _Authenticate(self, login_url="/accounts/login"):
+  def _Authenticate(self, login_url="/accounts/login/"):
     """Save the cookie jar after authentication."""
     login_url = "%s%s" % (self.host, login_url)
     print "Login URL: %r" % login_url
