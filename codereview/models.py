@@ -200,10 +200,14 @@ class Message(db.Model):
 
   @property
   def approval(self):
+    """Is True when the message represents an approval of the review."""
     if self._approval is None:
+      # Must contain 'lgtm' in a line that doesn't start with '>'.
       self._approval = any(
           True for line in self.text.lower().splitlines()
           if not line.strip().startswith('>') and 'lgtm' in line)
+      # Must not be the issue owner
+      self._approval &= self.issue.owner.email() != self.sender
     return self._approval
 
 
