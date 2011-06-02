@@ -2015,10 +2015,7 @@ def _patchset_delete(ps_delete, patches):
     tbp.append(patch)
   if tbp:
     db.put(tbp)
-  tbd = [ps_delete]
-  for cls in [models.Patch, models.Comment]:
-    tbd += cls.gql('WHERE ANCESTOR IS :1', ps_delete)
-  db.delete(tbd)
+  # delete cascades to Patch and Comment
 
 
 @post_required
