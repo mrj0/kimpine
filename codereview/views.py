@@ -1970,12 +1970,10 @@ def _delete_cached_contents(patch_set):
 def delete(request):
   """/<issue>/delete - Delete an issue.  There is no way back."""
   issue = request.issue
-  tbd = [issue]
-  for cls in [models.PatchSet, models.Patch, models.Comment,
-              models.Message, models.Content]:
-    tbd += cls.gql('WHERE ANCESTOR IS :1', issue)
-  db.delete(tbd)
   _notify_issue(request, issue, 'Deleted')
+  # the delete should cascade to all foreign keys
+  # PatchSet, Patch, Comment, Message, Content
+  issue.delete()
   return HttpResponseRedirect(reverse(mine))
 
 
