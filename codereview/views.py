@@ -1513,6 +1513,7 @@ def _get_emails(form, label):
   raw_emails = form.cleaned_data.get(label)
   if raw_emails:
     return _get_emails_from_raw(raw_emails.split(','), form=form)
+  return []
 
 def _get_emails_from_raw(raw_emails, form=None):
   emails = []
