@@ -385,19 +385,23 @@ function M_hideAllDiffs(num) {
 
 /**
  * Changes the elements display style to "" which renders it visible.
- * @param {String} id The id of the target element
+ * @param {String|Element} elt The id of the element or the element itself
  */
-function M_showElement(id) {
-  var elt = document.getElementById(id);
+function M_showElement(elt) {
+  if (typeof elt == "string") {
+    elt = document.getElementById(elt);
+  }
   if (elt) elt.style.display = "";
 }
 
 /**
  * Changes the elements display style to "none" which renders it invisible.
- * @param {String} id The id of the target element
+ * @param {String|Element} elt The id of the element or the element itself
  */
-function M_hideElement(id) {
-  var elt = document.getElementById(id);
+function M_hideElement(elt) {
+  if (typeof elt == "string") {
+    elt = document.getElementById(elt);
+  }
   if (elt) elt.style.display = "none";
 }
 
@@ -684,23 +688,34 @@ function M_replyToComment(author, written_time, ccs, cid, prefix, opt_lineno,
 function M_replyToMessage(message_id, written_time, author) {
   var form = document.getElementById('message-reply-form');
   form = form.cloneNode(true);
-  container = document.getElementById('message-reply-'+message_id);
+  var container = document.getElementById('message-reply-'+message_id);
+  var replyLink = document.getElementById('message-reply-href-'+message_id);
+  var msgTextarea = replyLink.nextSibling.nextSibling;
+  form.insertBefore(msgTextarea, form.firstChild);
+  M_showElement(msgTextarea);
   container.appendChild(form);
-  container.style.display = '';
+  M_showElement(container);
+
   form.discard.onclick = function () {
-    document.getElementById('message-reply-href-'+message_id).style.display = "";
-    document.getElementById('message-reply-'+message_id).innerHTML = "";
+    form.message.value = "";
+    M_getParent(container).insertBefore(msgTextarea, replyLink.nextSibling.nextSibling);
+    M_showElement(replyLink);
+    M_hideElement(msgTextarea);
+    container.innerHTML = "";
   }
+
   form.send_mail.id = 'message-reply-send-mail-'+message_id;
   var lbl = document.getElementById(form.send_mail.id).nextSibling.nextSibling;
   lbl.setAttribute('for', form.send_mail.id);
-  form.message.value = "On " + written_time + ", " + author + " wrote:\n";
-  var divs = document.getElementsByName("cl-message-" + message_id);
-  form.message.focus();
-  M_setValueFromDivs(divs, form.message);
-  form.message.value += "\n";
+  if (!form.message.value) {
+    form.message.value = "On " + written_time + ", " + author + " wrote:\n";
+    var divs = document.getElementsByName("cl-message-" + message_id);
+    form.message.focus();
+    M_setValueFromDivs(divs, form.message);
+    form.message.value += "\n";
+  }
   M_addTextResizer_(form);
-  document.getElementById('message-reply-href-'+message_id).style.display = "none";
+  M_hideElement(replyLink);
 }
 
 
@@ -1412,6 +1427,43 @@ function M_handleTableDblClick(evt) {
     M_createInlineComment(parseInt(target.id.substr(7)), side);
   }
 }
+
+var M_timerLongTap = null;
+
+/**
+ * Resets the long tap timer iff activated.
+ */
+function M_clearTableTouchTimeout() {
+  if (M_timerLongTap) {
+    clearTimeout(M_timerLongTap);
+  }
+  M_timerLongTap = null;
+}
+
+/**
+ * Handles long tap events on mobile devices (touchstart).
+ *
+ * This function activates a 1sec timeout that redirects the event to
+ * M_handleTableDblClick().
+ */
+function M_handleTableTouchStart(evt) {
+  if (evt.touches && evt.touches.length == 1) { // 1 finger touch
+    M_clearTableTouchTimeout();
+    M_timerLongTap = setTimeout(function() {
+     M_clearTableTouchTimeout();
+      M_handleTableDblClick(evt);
+    }, 1000);
+  }
+}
+
+
+/**
+ * Handles touchend event for long taps on mobile devices.
+ */
+function M_handleTableTouchEnd(evt) {
+  M_clearTableTouchTimeout();
+}
+
 
 /**
  * Makes all inline comments visible. This is the default view.
