@@ -89,7 +89,7 @@ class Issue(db.Model):
     if self._is_starred is not None:
       return self._is_starred
     account = Account.current_user_account
-    self._is_starred = account is not None and self.key().id() in account.stars
+    self._is_starred = account is not None and self.id in account.stars
     return self._is_starred
 
   def user_can_edit(self, user):
@@ -729,16 +729,15 @@ class Account(db.Model):
     dirty = False
     if self._drafts is None:
       dirty = self._initialize_drafts()
-    id = issue.key().id()
     if have_drafts is None:
       have_drafts = bool(issue.num_drafts)  # Beware, this may do a query.
     if have_drafts:
-      if id not in self._drafts:
-        self._drafts.append(id)
+      if issue.id not in self._drafts:
+        self._drafts.append(issue.id)
         dirty = True
     else:
-      if id in self._drafts:
-        self._drafts.remove(id)
+      if issue.id in self._drafts:
+        self._drafts.remove(issue.id)
         dirty = True
     if dirty:
       self._save_drafts()
@@ -758,7 +757,7 @@ class Account(db.Model):
       return False
     # We're looking for the Issue key id.  The ancestry of comments goes:
     # Issue -> PatchSet -> Patch -> Comment.
-    issue_ids = set(comment.key().parent().parent().parent().id()
+    issue_ids = set(comment.patch.patchset.issue.id
                     for comment in Comment.objects.filter(author__exact=self.user,
                                                           draft__exact=True))
     self._drafts = list(issue_ids)

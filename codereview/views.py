@@ -367,7 +367,7 @@ class SettingsForm(forms.Form):
     # Look for existing nicknames
     accounts = models.Account.objects.filter(lower_nickname__exact=nickname.lower())
     for account in accounts:
-      if account.key() == models.Account.current_user_account.key():
+      if account == models.Account.current_user_account:
         continue
       raise forms.ValidationError('This nickname is already in use.')
 
@@ -580,7 +580,7 @@ def _notify_issue(request, issue, message):
     True if the message was (apparently) delivered, False if not.
   """
   return
-  iid = issue.key().id()
+  iid = issue.id
   emails = [issue.owner.email()]
   if issue.reviewers:
     emails.extend(issue.reviewers)
@@ -817,7 +817,7 @@ def patch_required(func):
     patch = models.Patch.get_by_id(int(patch_id), parent=request.patchset)
     if patch is None:
       return HttpResponseNotFound('No patch exists with that id (%s/%s)' %
-                                  (request.patchset.key().id(), patch_id))
+                                  (request.patchset.id, patch_id))
     patch.patchset = request.patchset
     request.patch = patch
     return func(request, *args, **kwds)
@@ -1093,7 +1093,7 @@ def _optimize_draft_counts(issues):
   else:
     issue_ids = account.drafts
   for issue in issues:
-    if issue_ids is None or issue.key().id() not in issue_ids:
+    if issue_ids is None or issue.id not in issue_ids:
       issue._num_drafts = 0
 
 
@@ -1138,28 +1138,28 @@ def _show_user(request):
   user = request.user_to_show
   if user == request.user:
     query = models.Comment.objects.filter(draft__exact=True, author__exact=request.user)[:100]
-    draft_keys = set(d.parent_key().parent().parent() for d in query)
-    draft_issues = models.Issue.objects.filter(pk__in=[key.id() for key in draft_keys])
+    draft_keys = set(d.patch.patchset.issue.id for d in query)
+    draft_issues = models.Issue.objects.filter(pk__in=draft_keys)
   else:
     draft_issues = draft_keys = []
   my_issues = [issue for issue in
       models.Issue.objects.filter(closed__exact=False,
                                   owner__exact=user).order_by('-modified')
-      if issue.key() not in draft_keys and _can_view_issue(request.user, issue)]
+      if issue.id not in draft_keys and _can_view_issue(request.user, issue)]
   review_issues = [issue for issue in
       models.Issue.objects.filter(closed__exact=False,
                                   reviewers__exact=user.email().lower()).order_by('-modified')
-      if (issue.key() not in draft_keys and issue.owner != user
+      if (issue.id not in draft_keys and issue.owner != user
           and _can_view_issue(request.user, issue))]
   closed_issues = [issue for issue in
       models.Issue.objects.filter(closed__exact=True,
                                   modified__gt=datetime.datetime.now() - datetime.timedelta(days=7),
                                   owner__exact=user).order_by('-modified')
-      if issue.key() not in draft_keys and _can_view_issue(request.user, issue)]
+      if issue.id not in draft_keys and _can_view_issue(request.user, issue)]
   cc_issues = [issue for issue in
       models.Issue.objects.filter(closed__exact=False,
                                   cc__exact=user.email()).order_by('-modified')
-      if (issue.key() not in draft_keys and issue.owner != user
+      if (issue.id not in draft_keys and issue.owner != user
           and _can_view_issue(request.user, issue))]
 
   all_issues = my_issues + review_issues + closed_issues + cc_issues
@@ -1193,7 +1193,7 @@ def new(request):
   if issue is None:
     return respond(request, 'new.html', {'form': form})
   else:
-    return HttpResponseRedirect(reverse(show, args=[issue.key().id()]))
+    return HttpResponseRedirect(reverse(show, args=[issue.id]))
 
 
 @login_required
@@ -1263,11 +1263,11 @@ def upload(request):
     msg = ('Issue %s. URL: %s' %
            (action,
             request.build_absolute_uri(
-              reverse('show_bare_issue_number', args=[issue.key().id()]))))
+              reverse('show_bare_issue_number', args=[issue.id]))))
     if (form.cleaned_data.get('content_upload') or
         form.cleaned_data.get('separate_patches')):
       # Extend the response message: 2nd line is patchset id.
-      msg +="\n%d" % patchset.key().id()
+      msg +="\n%d" % patchset.id
       if form.cleaned_data.get('content_upload'):
         # Extend the response: additional lines are the expected filenames.
         issue.local_base = True
@@ -1312,7 +1312,7 @@ def upload(request):
 
         for patch, content_entity in zip(patches, content_entities):
           patch.content = content_entity
-          id_string = patch.key().id()
+          id_string = patch.id
           if content_entity not in new_content_entities:
             # Base file not needed since we reused a previous upload.  Send its
             # patch id in case it's a binary file and the new content needs to
@@ -1342,7 +1342,7 @@ def upload_content(request):
       return HttpResponse('Error: Login required', status=401)
   if request.user != request.issue.owner:
     return HttpResponse('ERROR: You (%s) don\'t own this issue (%s).' %
-                        (request.user, request.issue.key().id()))
+                        (request.user, request.issue.id))
   patch = request.patch
   patch.status = form.cleaned_data['status']
   patch.is_binary = form.cleaned_data['is_binary']
@@ -1393,7 +1393,7 @@ def upload_patch(request):
       return HttpResponse('Error: Login required', status=401)
   if request.user != request.issue.owner:
     return HttpResponse('ERROR: You (%s) don\'t own this issue (%s).' %
-                        (request.user, request.issue.key().id()))
+                        (request.user, request.issue.id))
   form = UploadPatchForm(request.POST, request.FILES)
   if not form.is_valid():
     return HttpResponse('ERROR: Upload patch errors:\n%s' % repr(form.errors),
@@ -1413,7 +1413,7 @@ def upload_patch(request):
     patch.content = content
     patch.put()
 
-  msg = 'OK\n' + str(patch.key().id())
+  msg = 'OK\n' + str(patch.id)
   return HttpResponse(msg, content_type='text/plain')
 
 
@@ -1537,8 +1537,8 @@ def add(request):
   issue = request.issue
   form = AddForm(request.POST, request.FILES)
   if not _add_patchset_from_form(request, issue, form):
-    return show(request, issue.key().id(), form)
-  return HttpResponseRedirect(reverse(show, args=[issue.key().id()]))
+    return show(request, issue.id, form)
+  return HttpResponseRedirect(reverse(show, args=[issue.id]))
 
 
 def _add_patchset_from_form(request, issue, form, message_key='message',
@@ -1638,7 +1638,7 @@ def _calculate_delta(patch, patchset_id, patchsets):
   if patch.no_base_file:
     return delta
   for other in patchsets:
-    if patchset_id == other.key().id():
+    if patchset_id == other.id:
       break
     if other.data or other.parsed_patches:
       # Loading all the Patch entities in every PatchSet takes too long
@@ -1658,12 +1658,12 @@ def _calculate_delta(patch, patchset_id, patchsets):
       for filename, text in other.parsed_patches:
         if filename == patch.filename:
           if text != patch.text:
-            delta.append(other.key().id())
+            delta.append(other.id)
           break
       else:
         # We could not find the file in the previous patchset. It must
         # be new wrt that patchset.
-        delta.append(other.key().id())
+        delta.append(other.id)
     else:
       # other (patchset) is too big to hold all the patches inside itself, so
       # we need to go to the datastore.  Use the index to see if there's a
@@ -1677,12 +1677,12 @@ def _calculate_delta(patch, patchset_id, patchsets):
                      len(other_patches))
       for op in other_patches:
         if op.text != patch.text:
-          delta.append(other.key().id())
+          delta.append(other.id)
           break
       else:
         # We could not find the file in the previous patchset. It must
         # be new wrt that patchset.
-        delta.append(other.key().id())
+        delta.append(other.id)
 
   return delta
 
@@ -1707,7 +1707,7 @@ def _get_patchset_info(request, patchset_id):
   patchsets = list(issue.patchset_set.order('created'))
   response = None
   if not patchset_id and patchsets:
-    patchset_id = patchsets[-1].key().id()
+    patchset_id = patchsets[-1].id
 
   if request.user:
     drafts = models.Comment.objects.filter(patch__patchset__issue__exact=issue,
@@ -1722,11 +1722,11 @@ def _get_patchset_info(request, patchset_id):
     c.ps_key = c.patch.patchset.key()
   patchset_id_mapping = {}  # Maps from patchset id to its ordering number.
   for patchset in patchsets:
-    patchset_id_mapping[patchset.key().id()] = len(patchset_id_mapping) + 1
+    patchset_id_mapping[patchset.id] = len(patchset_id_mapping) + 1
     patchset.n_drafts = sum(c.ps_key == patchset.key() for c in drafts)
     patchset.patches = None
     patchset.parsed_patches = None
-    if patchset_id == patchset.key().id():
+    if patchset_id == patchset.id:
       patchset.patches = list(patchset.patch_set.order('filename'))
       try:
         attempt = _clean_int(request.GET.get('attempt'), 0, 0)
@@ -1821,11 +1821,11 @@ def show(request, form=None):
 def patchset(request):
   """/patchset/<key> - Returns patchset information."""
   patchset = request.patchset
-  issue, patchsets, response = _get_patchset_info(request, patchset.key().id())
+  issue, patchsets, response = _get_patchset_info(request, patchset.id)
   if response:
     return response
   for ps in patchsets:
-    if ps.key().id() == patchset.key().id():
+    if ps.id == patchset.id:
       patchset = ps
   return respond(request, 'patchset.html',
                  {'issue': issue,
@@ -1929,7 +1929,7 @@ def edit(request):
     message = 'Reopened'
   _notify_issue(request, issue, message)
 
-  return HttpResponseRedirect(reverse(show, args=[issue.key().id()]))
+  return HttpResponseRedirect(reverse(show, args=[issue.id]))
 
 
 def _delete_cached_contents(patch_set):
@@ -1984,7 +1984,7 @@ def delete_patchset(request):
   """
   issue = request.issue
   ps_delete = request.patchset
-  ps_id = ps_delete.key().id()
+  ps_id = ps_delete.id
   patchsets_after = issue.patchset_set.filter('created >', ps_delete.created)
   patches = []
   for patchset in patchsets_after:
@@ -1994,7 +1994,7 @@ def delete_patchset(request):
           patches.append(patch)
   db.run_in_transaction(_patchset_delete, ps_delete, patches)
   _notify_issue(request, issue, 'Patchset deleted')
-  return HttpResponseRedirect(reverse(show, args=[issue.key().id()]))
+  return HttpResponseRedirect(reverse(show, args=[issue.id]))
 
 
 def _patchset_delete(ps_delete, patches):
@@ -2005,7 +2005,7 @@ def _patchset_delete(ps_delete, patches):
     patches: Patches that have delta against patches of ps_delete.
 
   """
-  patchset_id = ps_delete.key().id()
+  patchset_id = ps_delete.id
   tbp = []
   for patch in patches:
     patch.delta.remove(patchset_id)
@@ -2055,7 +2055,7 @@ def download(request):
   """/download/<issue>_<patchset>.diff - Download a patch set."""
   if request.patchset.data is None:
     return HttpResponseNotFound('Patch set (%s) is too large.'
-                                % request.patchset.key().id())
+                                % request.patchset.id)
   padding = ''
   user_agent = request.META.get('HTTP_USER_AGENT')
   if user_agent and 'MSIE' in user_agent:
@@ -2182,10 +2182,10 @@ def _issue_as_dict(issue, messages, request=None):
     'closed': issue.closed,
     'cc': issue.cc,
     'reviewers': issue.reviewers,
-    'patchsets': [p.key().id() for p in issue.patchset_set.order('created')],
+    'patchsets': [p.id for p in issue.patchset_set.order('created')],
     'description': issue.description,
     'subject': issue.subject,
-    'issue': issue.key().id(),
+    'issue': issue.id,
     'base_url': issue.base,
     'private': issue.private,
   }
@@ -2206,8 +2206,8 @@ def _issue_as_dict(issue, messages, request=None):
 def _patchset_as_dict(patchset, request=None):
   """Converts a patchset into a dict."""
   values = {
-    'patchset': patchset.key().id(),
-    'issue': patchset.issue.key().id(),
+    'patchset': patchset.id,
+    'issue': patchset.issue.id,
     'owner': library.get_nickname(patchset.issue.owner, True, request),
     'owner_email': patchset.issue.owner.email(),
     'message': patchset.message,
@@ -2222,7 +2222,7 @@ def _patchset_as_dict(patchset, request=None):
     # they cause a datastore query on first access. They could be added
     # optionally if the need ever arises.
     values['files'][patch.filename] = {
-        'id': patch.key().id(),
+        'id': patch.id,
         'is_binary': patch.is_binary,
         'no_base_file': patch.no_base_file,
         'num_added': patch.num_added,
@@ -2513,7 +2513,7 @@ def diff2(request, ps_left_id, ps_right_id, patch_filename):
                                                              filename__exact=patch_filename))
 
   if patch_right:
-    patch_id = patch_right.key().id()
+    patch_id = patch_right.id
   elif patch_filename.isdigit():
     # Perhaps it's an ID that's passed in, based on the old URL scheme.
     patch_id = int(patch_filename)
@@ -2660,13 +2660,13 @@ def _add_next_prev2(ps_left, ps_right, patch_right):
       if not found_patch:
           last_patch = p
           if ((p.num_comments > 0 or p.num_drafts > 0) and
-              ps_left.key().id() in p.delta):
+              ps_left.id in p.delta):
             last_patch_with_comment = p
       else:
           if next_patch is None:
             next_patch = p
           if ((p.num_comments > 0 or p.num_drafts > 0) and
-              ps_left.key().id() in p.delta):
+              ps_left.id in p.delta):
             next_patch_with_comment = p
             # safe to stop scanning now because the next with out a comment
             # will already have been filled in by some earlier patch
@@ -2923,7 +2923,7 @@ def publish(request):
   models.Account.current_user_account.update_drafts(issue, 0)
   if form.cleaned_data.get('no_redirect', False):
     return HttpResponse('OK', content_type='text/plain')
-  return HttpResponseRedirect(reverse(show, args=[issue.key().id()]))
+  return HttpResponseRedirect(reverse(show, args=[issue.id]))
 
 
 def _encode_safely(s):
@@ -2986,8 +2986,8 @@ def _get_draft_details(request, comments):
   for c in comments:
     if (c.patch.filename, c.left) != last_key:
       url = request.build_absolute_uri(
-        reverse(diff, args=[request.issue.key().id(),
-                            c.patch.patchset.key().id(),
+        reverse(diff, args=[request.issue.id,
+                            c.patch.patchset.id,
                             c.patch.filename]))
       output.append('\n%s\nFile %s (%s):' % (url, c.patch.filename,
                                              c.left and "left" or "right"))
@@ -3014,8 +3014,8 @@ def _get_draft_details(request, comments):
       if 1 <= c.lineno <= len(file_lines):
         context = file_lines[c.lineno - 1].strip()
     url = request.build_absolute_uri(
-      '%s#%scode%d' % (reverse(diff, args=[request.issue.key().id(),
-                                           c.patch.patchset.key().id(),
+      '%s#%scode%d' % (reverse(diff, args=[request.issue.id,
+                                           c.patch.patchset.id,
                                            c.patch.filename]),
                        c.left and "old" or "new",
                        c.lineno))
@@ -3041,7 +3041,7 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
     to.remove(my_email)
   if my_email in cc:
     cc.remove(my_email)
-  subject = 'CodeReview: %s (issue%d)' % (issue.subject, issue.key().id())
+  subject = 'CodeReview: %s (issue%d)' % (issue.subject, issue.id)
   if issue.message_set.count(1) > 0:
     subject = 'Re: ' + subject
   if comments:
@@ -3066,7 +3066,7 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
     msg.date = datetime.datetime.now()
 
   if send_mail:
-    url = request.build_absolute_uri(reverse(show, args=[issue.key().id()]))
+    url = request.build_absolute_uri(reverse(show, args=[issue.id]))
     reviewer_nicknames = ', '.join(library.get_nickname(rev_temp, True,
                                                         request)
                                    for rev_temp in issue.reviewers)
@@ -3122,7 +3122,7 @@ def star(request):
   account.user_has_selected_nickname()  # This will preserve account.fresh.
   if account.stars is None:
     account.stars = []
-  id = request.issue.key().id()
+  id = request.issue.id
   if id not in account.stars:
     account.stars.append(id)
     account.put()
@@ -3139,7 +3139,7 @@ def unstar(request):
   account.user_has_selected_nickname()  # This will preserve account.fresh.
   if account.stars is None:
     account.stars = []
-  id = request.issue.key().id()
+  id = request.issue.id
   if id in account.stars:
     account.stars[:] = [i for i in account.stars if i != id]
     account.put()
