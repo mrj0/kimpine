@@ -1274,7 +1274,7 @@ class GitVCS(VersionControlSystem):
           log_arg = extra_args[0]
         else:
           log_arg = extra_args[0] + ".."
-      elif extra_args.length == 2:
+      elif len(extra_args) == 2:
         if ".." in extra_args[0] or ".." in extra_args[1]:
           log_arg = extra_args[0] + extra_args[1]
         else:
