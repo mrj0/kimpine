@@ -148,7 +148,7 @@ class IssueBaseForm(forms.Form):
     for b in branches:
       if not b.repo_name:
         b.repo_name = b.repo.name
-        b.put()
+        b.save()
       pair = (b.key(), '%s - %s - %s' % (b.repo_name, b.category, b.name))
       choices.append(pair)
       if default is None and (base is None or b.url == base):
@@ -1203,7 +1203,7 @@ def use_uploadpy(request):
   if request.method == 'POST':
     if 'disable_msg' in request.POST:
       models.Account.current_user_account.uploadpy_hint = False
-      models.Account.current_user_account.put()
+      models.Account.current_user_account.save()
     if 'download' in request.POST:
       url = reverse(customized_upload_py)
     else:
@@ -1271,7 +1271,7 @@ def upload(request):
       if form.cleaned_data.get('content_upload'):
         # Extend the response: additional lines are the expected filenames.
         issue.local_base = True
-        issue.put()
+        issue.save()
 
         base_hashes = {}
         for file_info in form.cleaned_data.get('base_hashes').split("|"):
@@ -1346,15 +1346,15 @@ def upload_content(request):
   patch = request.patch
   patch.status = form.cleaned_data['status']
   patch.is_binary = form.cleaned_data['is_binary']
-  patch.put()
+  patch.save()
 
   if form.cleaned_data['is_current']:
     if patch.patched_content:
       return HttpResponse('ERROR: Already have current content.')
     content = models.Content(is_uploaded=True, parent=patch)
-    content.put()
+    content.save()
     patch.patched_content = content
-    patch.put()
+    patch.save()
   else:
     content = patch.content
 
@@ -1365,7 +1365,7 @@ def upload_content(request):
     checksum = md5.new(data).hexdigest()
     if checksum != request.POST.get('checksum'):
       content.is_bad = True
-      content.put()
+      content.save()
       return HttpResponse('ERROR: Checksum mismatch.',
                           content_type='text/plain')
     if patch.is_binary:
@@ -1373,7 +1373,7 @@ def upload_content(request):
     else:
       content.text = engine.ToText(engine.UnifyLinebreaks(data))
     content.checksum = checksum
-  content.put()
+  content.save()
   return HttpResponse('OK', content_type='text/plain')
 
 
@@ -1406,12 +1406,12 @@ def upload_patch(request):
   patch = models.Patch(patchset=patchset,
                        text=text,
                        filename=form.cleaned_data['filename'], parent=patchset)
-  patch.put()
+  patch.save()
   if form.cleaned_data.get('content_upload'):
     content = models.Content(is_uploaded=True, parent=patch)
-    content.put()
+    content.save()
     patch.content = content
-    patch.put()
+    patch.save()
 
   msg = 'OK\n' + str(patch.id)
   return HttpResponse(msg, content_type='text/plain')
@@ -1454,10 +1454,10 @@ def _make_new(request, form):
                          cc=cc,
                          private=form.cleaned_data.get('private', False),
                          n_comments=0)
-    issue.put()
+    issue.save()
 
     patchset = models.PatchSet(issue=issue, data=data, url=url, parent=issue)
-    patchset.put()
+    patchset.save()
     issue.patchset = patchset
 
     if not separate_patches:
@@ -1476,7 +1476,7 @@ def _make_new(request, form):
 
   if form.cleaned_data.get('send_mail'):
     msg = _make_message(request, issue, '', '', True)
-    msg.put()
+    msg.save()
     _notify_issue(request, issue, 'Created')
   return issue
 
@@ -1556,7 +1556,7 @@ def _add_patchset_from_form(request, issue, form, message_key='message',
   message = form.cleaned_data[message_key]
   patchset = models.PatchSet(issue=issue, message=message, data=data, url=url,
                              parent=issue)
-  patchset.put()
+  patchset.save()
 
   if not separate_patches:
     patches = engine.ParsePatchSet(patchset)
@@ -1580,11 +1580,11 @@ def _add_patchset_from_form(request, issue, form, message_key='message',
   else:
     issue.reviewers = _get_emails(form, 'reviewers')
     issue.cc = _get_emails(form, 'cc')
-  issue.put()
+  issue.save()
 
   if form.cleaned_data.get('send_mail'):
     msg = _make_message(request, issue, message, '', True)
-    msg.put()
+    msg.save()
     _notify_issue(request, issue, 'Updated')
   return patchset
 
@@ -1757,7 +1757,7 @@ def _get_patchset_info(request, patchset_id):
               # RequestTooLarge.  This way, although not as efficient, allows
               # multiple refreshes on an issue to get things done, as opposed to
               # an all-or-nothing approach.
-              patch.put()
+              patch.save()
           # Reduce memory usage: if this patchset has lots of added/removed
           # files (i.e. > 100) then we'll get MemoryError when rendering the
           # response.  Each Patch entity is using a lot of memory if the files
@@ -1920,7 +1920,7 @@ def edit(request):
   if base_changed:
     for patchset in issue.patchset_set:
       db.run_in_transaction(_delete_cached_contents, list(patchset.patch_set))
-  issue.put()
+  issue.save()
   if issue.closed == was_closed:
     message = 'Edited'
   elif issue.closed:
@@ -2026,7 +2026,7 @@ def close(request):
     new_description = request.POST.get('description')
     if new_description:
       issue.description = new_description
-  issue.put()
+  issue.save()
   _notify_issue(request, issue, 'Closed')
   return HttpResponse('Closed', content_type='text/plain')
 
@@ -2044,7 +2044,7 @@ def mailissue(request):
       return HttpResponse('Login required', status=401)
   issue = request.issue
   msg = _make_message(request, issue, '', '', True)
-  msg.put()
+  msg.save()
   _notify_issue(request, issue, 'Mailed')
 
   return HttpResponse('OK', content_type='text/plain')
@@ -2080,7 +2080,7 @@ def description(request):
       return HttpResponse('Login required', status=401)
   issue = request.issue
   issue.description = request.POST.get('description')
-  issue.put()
+  issue.save()
   _notify_issue(request, issue, 'Changed')
   return HttpResponse('')
 
@@ -2116,7 +2116,7 @@ def fields(request):
     issue.reviewers = _get_emails_from_raw(fields['reviewers'])
   if 'subject' in fields:
     issue.subject = fields['subject']
-  issue.put()
+  issue.save()
   _notify_issue(request, issue, 'Changed')
   return HttpResponse('')
 
@@ -2350,11 +2350,11 @@ def _get_diff_table_rows(request, patch, context, column_width):
       # will fetch it.
       content.is_bad = True
       content.text = None
-      content.put()
+      content.save()
     else:
       content.delete()
       request.patch.content = None
-      request.patch.put()
+      request.patch.save()
 
   return rows
 
@@ -2752,7 +2752,7 @@ def _inline_draft(request):
     comment.left = left
     comment.text = db.Text(text)
     comment.message_id = message_id
-    comment.put()
+    comment.save()
     # The actual count doesn't matter, just that there's at least one.
     models.Account.current_user_account.update_drafts(issue, 1)
 
@@ -3125,7 +3125,7 @@ def star(request):
   id = request.issue.id
   if id not in account.stars:
     account.stars.append(id)
-    account.put()
+    account.save()
   return respond(request, 'issue_star.html', {'issue': request.issue})
 
 
@@ -3142,7 +3142,7 @@ def unstar(request):
   id = request.issue.id
   if id in account.stars:
     account.stars[:] = [i for i in account.stars if i != id]
-    account.put()
+    account.save()
   return respond(request, 'issue_star.html', {'issue': request.issue})
 
 
@@ -3197,7 +3197,7 @@ def _post_draft_message(request, draft):
     draft = models.Message(issue=request.issue, parent=request.issue,
                            sender=request.user.email(), draft=True)
   draft.text = request.POST.get('reviewmsg')
-  draft.put()
+  draft.save()
   return HttpResponse(draft.text, content_type='text/plain')
 
 
@@ -3312,7 +3312,7 @@ def repo_new(request):
       errors['__all__'] = unicode(err)
   if errors:
     return respond(request, 'repo_new.html', {'form': form})
-  repo.put()
+  repo.save()
   branch_url = repo.url
   if not branch_url.endswith('/'):
     branch_url += '/'
@@ -3320,7 +3320,7 @@ def repo_new(request):
   branch = models.Branch(repo=repo, repo_name=repo.name,
                          category='*trunk*', name='Trunk',
                          url=branch_url)
-  branch.put()
+  branch.save()
   return HttpResponseRedirect(reverse(repos))
 
 
@@ -3340,7 +3340,7 @@ def repo_init(request):
   python = _first_or_none(models.Repository.objects.filter(name__exact='Python'))
   if python is None:
     python = models.Repository(name='Python', url=SVN_ROOT)
-    python.put()
+    python.save()
     pybranches = []
   else:
     pybranches = models.Branch.objects.filter(repo__exact=python)
@@ -3352,7 +3352,7 @@ def repo_init(request):
     else:
       br = models.Branch(repo=python, repo_name='Python',
                          category=category, name=name, url=url)
-      br.put()
+      br.save()
   return HttpResponseRedirect(reverse(repos))
 
 
@@ -3378,7 +3378,7 @@ def branch_new(request, repo_id):
   if errors:
     return respond(request, 'branch_new.html', {'form': form, 'repo': repo})
   branch.repo_name = repo.name
-  branch.put()
+  branch.save()
   return HttpResponseRedirect(reverse(repos))
 
 
@@ -3405,7 +3405,7 @@ def branch_edit(request, branch_id):
     return respond(request, 'branch_edit.html',
                    {'branch': branch, 'form': form})
   branch.repo_name = branch.repo.name
-  branch.put()
+  branch.save()
   return HttpResponseRedirect(reverse(repos))
 
 
@@ -3468,7 +3468,7 @@ def settings(request):
     must_invite = notify_by_chat and not account.notify_by_chat
     account.notify_by_chat = notify_by_chat
     account.fresh = False
-    account.put()
+    account.save()
     if must_invite:
       logging.info('Sending XMPP invite to %s', account.email)
       try:
@@ -3604,7 +3604,7 @@ def _process_incoming_mail(raw_message, recipients):
                        date=datetime.datetime.now(),
                        text=db.Text(body, encoding=charset),
                        draft=False)
-  msg.put()
+  msg.save()
 
   # Add sender to reviewers if needed.
   all_emails = [str(x).lower()
@@ -3616,7 +3616,7 @@ def _process_incoming_mail(raw_message, recipients):
       issue.reviewers.append(account.email)  # e.g. account.email is CamelCase
     else:
       issue.reviewers.append(db.Email(sender))
-    issue.put()
+    issue.save()
 
 
 @login_required

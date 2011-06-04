@@ -386,9 +386,9 @@ class Patch(db.Model):
       self.content = None
 
     content = engine.FetchBase(self.patchset.issue.base, self)
-    content.put()
+    content.save()
     self.content = content
-    self.put()
+    self.save()
     return content
 
   def get_patched_content(self):
@@ -417,9 +417,9 @@ class Patch(db.Model):
       new_lines.extend(new)
     text = db.Text(''.join(new_lines))
     patched_content = Content(text=text, parent=self)
-    patched_content.put()
+    patched_content.save()
     self.patched_content = patched_content
-    self.put()
+    self.save()
     return patched_content
 
   @property
@@ -572,10 +572,10 @@ class Account(db.Model):
   xsrf_secret = db.BlobProperty()
 
   # Note that this doesn't get called when doing multi-entity puts.
-  def put(self):
+  def save(self):
     self.lower_email = str(self.email).lower()
     self.lower_nickname = self.nickname.lower()
-    super(Account, self).put()
+    super(Account, self).save()
 
   @classmethod
   def get_account_for_user(cls, user):
@@ -773,7 +773,7 @@ class Account(db.Model):
     """Return an XSRF token for the current user."""
     if not self.xsrf_secret:
       self.xsrf_secret = os.urandom(8)
-      self.put()
+      self.save()
     m = md5.new(self.xsrf_secret)
     email_str = self.lower_email
     if isinstance(email_str, unicode):
