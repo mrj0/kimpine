@@ -36,7 +36,6 @@ from xml.etree import ElementTree
 from google.appengine.api import memcache
 from google.appengine.api import users
 from google.appengine.api import urlfetch
-from google.appengine.api import xmpp
 from google.appengine.ext import db
 from google.appengine.ext.db import djangoforms
 from google.appengine.runtime import DeadlineExceededError
@@ -559,64 +558,6 @@ def _can_view_issue(user, issue):
           or issue.owner == user
           or user_email in issue.cc
           or user_email in issue.reviewers)
-
-
-# DEFUNCT CURRENTLY
-def _notify_issue(request, issue, message):
-  """Try sending an XMPP (chat) message.
-
-  Args:
-    request: The request object.
-    issue: Issue whose owner, reviewers, CC are to be notified.
-    message: Text of message to send, e.g. 'Created'.
-
-  The current user and the issue's subject and URL are appended to the message.
-
-  Returns:
-    True if the message was (apparently) delivered, False if not.
-  """
-  return
-  iid = issue.id
-  emails = [issue.owner.email()]
-  if issue.reviewers:
-    emails.extend(issue.reviewers)
-  if issue.cc:
-    emails.extend(issue.cc)
-  accounts = models.Account.get_multiple_accounts_by_email(emails)
-  jids = []
-  for account in accounts.itervalues():
-    logging.debug('email=%r,chat=%r', account.email, account.notify_by_chat)
-    if account.notify_by_chat:
-      jids.append(account.email)
-  if not jids:
-    logging.debug('No XMPP jids to send to for issue %d', iid)
-    return True  # Nothing to do.
-  jids_str = ', '.join(jids)
-  logging.debug('Sending XMPP for issue %d to %s', iid, jids_str)
-  sender = '?'
-  if models.Account.current_user_account:
-    sender = models.Account.current_user_account.nickname
-  elif request.user:
-    sender = request.user.email()
-  message = '%s by %s: %s\n%s' % (message,
-                                  sender,
-                                  issue.subject,
-                                  request.build_absolute_uri(
-                                    reverse(show, args=[iid])))
-  try:
-    sts = xmpp.send_message(jids, message)
-  except Exception, err:
-    logging.exception('XMPP exception %s sending for issue %d to %s',
-                      err, iid, jids_str)
-    return False
-  else:
-    if sts == [xmpp.NO_ERROR] * len(jids):
-      logging.info('XMPP message sent for issue %d to %s', iid, jids_str)
-      return True
-    else:
-      logging.error('XMPP error %r sending for issue %d to %s',
-                    sts, iid, jids_str)
-      return False
 
 
 ### Decorators for request handlers ###
@@ -1473,7 +1414,6 @@ def _make_new(request, form):
   if form.cleaned_data.get('send_mail'):
     msg = _make_message(request, issue, '', '', True)
     msg.save()
-    _notify_issue(request, issue, 'Created')
   return issue
 
 
@@ -1581,7 +1521,6 @@ def _add_patchset_from_form(request, issue, form, message_key='message',
   if form.cleaned_data.get('send_mail'):
     msg = _make_message(request, issue, message, '', True)
     msg.save()
-    _notify_issue(request, issue, 'Updated')
   return patchset
 
 
@@ -1923,7 +1862,6 @@ def edit(request):
     message = 'Closed'
   else:
     message = 'Reopened'
-  _notify_issue(request, issue, message)
 
   return HttpResponseRedirect(reverse(show, args=[issue.id]))
 
@@ -1963,7 +1901,6 @@ def _delete_cached_contents(patch_set):
 def delete(request):
   """/<issue>/delete - Delete an issue.  There is no way back."""
   issue = request.issue
-  _notify_issue(request, issue, 'Deleted')
   # the delete should cascade to all foreign keys
   # PatchSet, Patch, Comment, Message, Content
   issue.delete()
@@ -1989,7 +1926,6 @@ def delete_patchset(request):
         if ps_id in patch.delta:
           patches.append(patch)
   db.run_in_transaction(_patchset_delete, ps_delete, patches)
-  _notify_issue(request, issue, 'Patchset deleted')
   return HttpResponseRedirect(reverse(show, args=[issue.id]))
 
 
@@ -2023,7 +1959,6 @@ def close(request):
     if new_description:
       issue.description = new_description
   issue.save()
-  _notify_issue(request, issue, 'Closed')
   return HttpResponse('Closed', content_type='text/plain')
 
 
@@ -2041,7 +1976,6 @@ def mailissue(request):
   issue = request.issue
   msg = _make_message(request, issue, '', '', True)
   msg.save()
-  _notify_issue(request, issue, 'Mailed')
 
   return HttpResponse('OK', content_type='text/plain')
 
@@ -2077,7 +2011,6 @@ def description(request):
   issue = request.issue
   issue.description = request.POST.get('description')
   issue.save()
-  _notify_issue(request, issue, 'Changed')
   return HttpResponse('')
 
 @issue_required
@@ -2113,7 +2046,6 @@ def fields(request):
   if 'subject' in fields:
     issue.subject = fields['subject']
   issue.save()
-  _notify_issue(request, issue, 'Changed')
   return HttpResponse('')
 
 
@@ -2913,8 +2845,6 @@ def publish(request):
   for obj in tbd:
     db.put(obj)
 
-  _notify_issue(request, issue, 'Comments published')
-
   # There are now no comments here (modulo race conditions)
   models.Account.current_user_account.update_drafts(issue, 0)
   if form.cleaned_data.get('no_redirect', False):
@@ -3439,38 +3369,15 @@ def settings(request):
                                  'notify_by_email': account.notify_by_email,
                                  'notify_by_chat': account.notify_by_chat,
                                  })
-    chat_status = None
-    if account.notify_by_chat:
-      try:
-        presence = xmpp.get_presence(account.email)
-      except Exception, err:
-        logging.error('Exception getting XMPP presence: %s', err)
-        chat_status = 'Error (%s)' % err
-      else:
-        if presence:
-          chat_status = 'online'
-        else:
-          chat_status = 'offline'
-    return respond(request, 'settings.html', {'form': form,
-                                              'chat_status': chat_status})
+    return respond(request, 'settings.html', {'form': form})
   form = SettingsForm(request.POST)
   if form.is_valid():
     account.nickname = form.cleaned_data.get('nickname')
     account.default_context = form.cleaned_data.get('context')
     account.default_column_width = form.cleaned_data.get('column_width')
     account.notify_by_email = form.cleaned_data.get('notify_by_email')
-    notify_by_chat = form.cleaned_data.get('notify_by_chat')
-    must_invite = notify_by_chat and not account.notify_by_chat
-    account.notify_by_chat = notify_by_chat
     account.fresh = False
     account.save()
-    if must_invite:
-      logging.info('Sending XMPP invite to %s', account.email)
-      try:
-        xmpp.send_invite(account.email)
-      except Exception, err:
-        # XXX How to tell user it failed?
-        logging.error('XMPP invite to %s failed', account.email)
   else:
     return respond(request, 'settings.html', {'form': form})
   return HttpResponseRedirect(reverse(mine))
@@ -3518,24 +3425,6 @@ def _user_popup(request):
     # Use time expired cache because the number of issues will change over time
     memcache.add('user_popup:' + user.email(), popup_html, 60)
   return popup_html
-
-
-@post_required
-def incoming_chat(request):
-  """/_ah/xmpp/message/chat/
-
-  This handles incoming XMPP (chat) messages.
-
-  Just reply saying we ignored the chat.
-  """
-  sender = request.POST.get('from')
-  if not sender:
-    logging.warn('Incoming chat without "from" key ignored')
-  else:
-    sts = xmpp.send_message([sender],
-                            'Sorry, Rietveld does not support chat input')
-    logging.debug('XMPP status %r', sts)
-  return HttpResponse('')
 
 
 @post_required
@@ -3639,13 +3528,6 @@ def customized_upload_py(request):
   f = open(django_settings.UPLOAD_PY_SOURCE)
   source = f.read()
   f.close()
-
-  # When served from a Google Apps instance, the account namespace needs to be
-  # switched to "Google Apps only".
-  if ('AUTH_DOMAIN' in request.META
-      and request.META['AUTH_DOMAIN'] != 'gmail.com'):
-    source = source.replace('AUTH_ACCOUNT_TYPE = "GOOGLE"',
-                            'AUTH_ACCOUNT_TYPE = "HOSTED"')
 
   # On a non-standard instance, the default review server is changed to the
   # current hostname. This might give weird results when using versioned appspot
