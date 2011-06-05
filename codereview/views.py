@@ -33,7 +33,6 @@ from cStringIO import StringIO
 from xml.etree import ElementTree
 
 # AppEngine imports
-from google.appengine.api import mail
 from google.appengine.api import memcache
 from google.appengine.api import users
 from google.appengine.api import urlfetch
@@ -57,6 +56,7 @@ from django.template import RequestContext
 from django.utils import simplejson
 from django.utils.safestring import mark_safe
 from django.core.urlresolvers import reverse
+from django.core.mail import EmailMessage
 
 # Local imports
 import models
@@ -3087,20 +3087,23 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
     body = django.template.loader.render_to_string(
       template, context, context_instance=RequestContext(request))
     logging.warn('Mail: to=%s; cc=%s', ', '.join(to), ', '.join(cc))
-    send_args = {'sender': my_email,
+    headers = { 'Reply-To': reply_to }
+    mail_args = {'from_mail': my_email,
                  'to': [_encode_safely(address) for address in to],
                  'subject': _encode_safely(subject),
                  'body': _encode_safely(body),
-                 'reply_to': _encode_safely(reply_to)}
+                 'reply_to': _encode_safely(reply_to),
+                 'headers': headers}
     if cc:
-      send_args['cc'] = [_encode_safely(address) for address in cc]
+      headers['Cc'] = ', '.join(_encode_safely(address) for address in cc)
 
     attempts = 0
     while True:
       try:
-        mail.send_mail(**send_args)
+        mail = EmailMessage(**mail_args)
+        mail.send()
         break
-      except apiproxy_errors.DeadlineExceededError:
+      except:
         # apiproxy_errors.DeadlineExceededError is raised when the
         # deadline of an API call is reached (e.g. for mail it's
         # something about 5 seconds). It's not the same as the lethal
