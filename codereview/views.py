@@ -40,7 +40,6 @@ from google.appengine.api import xmpp
 from google.appengine.ext import db
 from google.appengine.ext.db import djangoforms
 from google.appengine.runtime import DeadlineExceededError
-from google.appengine.runtime import apiproxy_errors
 
 # Django imports
 # TODO(guido): Don't import classes/functions directly.
@@ -509,11 +508,6 @@ def respond(request, template, params=None):
   except DeadlineExceededError:
     logging.exception('DeadlineExceededError')
     return HttpResponse('DeadlineExceededError', status=503)
-  except apiproxy_errors.CapabilityDisabledError, err:
-    logging.exception('CapabilityDisabledError: %s', err)
-    return HttpResponse('Rietveld: App Engine is undergoing maintenance. '
-                        'Please try again in a while. ' + str(err),
-                        status=503)
   except MemoryError:
     logging.exception('MemoryError')
     return HttpResponse('MemoryError', status=503)
@@ -3104,10 +3098,6 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
         mail.send()
         break
       except:
-        # apiproxy_errors.DeadlineExceededError is raised when the
-        # deadline of an API call is reached (e.g. for mail it's
-        # something about 5 seconds). It's not the same as the lethal
-        # runtime.DeadlineExeededError.
         attempts += 1
         if attempts >= 3:
           raise
