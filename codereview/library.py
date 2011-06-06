@@ -38,7 +38,7 @@ def cache_set_multi(mapping, key_prefix=''):
   [cache.set('%s%s' % (key_prefix, key), mapping[key]) for key in mapping]
   return []
 
-def cache_get_multi(self, keys, key_prefix=''):
+def cache_get_multi(keys, key_prefix=''):
   mapping = {}
   [mapping.setdefault(key, cache.get('%s%s' % (key_prefix, key)))
    for key in keys
