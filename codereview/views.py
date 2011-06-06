@@ -1658,50 +1658,49 @@ def _get_patchset_info(request, patchset_id):
     patchset.parsed_patches = None
     if patchset_id == patchset.id:
       patchset.patches = list(patchset.patch_set.order('filename'))
-      try:
-        attempt = _clean_int(request.GET.get('attempt'), 0, 0)
-        if attempt < 0:
-          response = HttpResponse('Invalid parameter', status=404)
-          break
-        for patch in patchset.patches:
-          pkey = patch.key()
-          patch._num_comments = sum(c.parent_key() == pkey for c in comments)
-          patch._num_drafts = sum(c.parent_key() == pkey for c in drafts)
-          if not patch.delta_calculated:
-            if attempt > 2:
-              # Too many patchsets or files and we're not able to generate the
-              # delta links.  Instead of giving a 500, try to render the page
-              # without them.
-              patch.delta = []
-            else:
-              # Compare each patch to the same file in earlier patchsets to see
-              # if they differ, so that we can generate the delta patch urls.
-              # We do this once and cache it after.  It's specifically not done
-              # on upload because we're already doing too much processing there.
-              # NOTE: this function will clear out patchset.data to reduce
-              # memory so don't ever call patchset.put() after calling it.
-              patch.delta = _calculate_delta(patch, patchset_id, patchsets)
-              patch.delta_calculated = True
-              # A multi-entity put would be quicker, but it fails when the
-              # patches have content that is large.  App Engine throws
-              # RequestTooLarge.  This way, although not as efficient, allows
-              # multiple refreshes on an issue to get things done, as opposed to
-              # an all-or-nothing approach.
-              patch.save()
-          # Reduce memory usage: if this patchset has lots of added/removed
-          # files (i.e. > 100) then we'll get MemoryError when rendering the
-          # response.  Each Patch entity is using a lot of memory if the files
-          # are large, since it holds the entire contents.  Call num_chunks and
-          # num_drafts first though since they depend on text.
-          patch.num_chunks
-          patch.num_drafts
-          patch.num_added
-          patch.num_removed
-          patch.text = None
-          patch._lines = None
-          patch.parsed_deltas = []
-          for delta in patch.delta:
-            patch.parsed_deltas.append([patchset_id_mapping[delta], delta])
+      attempt = _clean_int(request.GET.get('attempt'), 0, 0)
+      if attempt < 0:
+        response = HttpResponse('Invalid parameter', status=404)
+        break
+      for patch in patchset.patches:
+        pkey = patch.key()
+        patch._num_comments = sum(c.parent_key() == pkey for c in comments)
+        patch._num_drafts = sum(c.parent_key() == pkey for c in drafts)
+        if not patch.delta_calculated:
+          if attempt > 2:
+            # Too many patchsets or files and we're not able to generate the
+            # delta links.  Instead of giving a 500, try to render the page
+            # without them.
+            patch.delta = []
+          else:
+            # Compare each patch to the same file in earlier patchsets to see
+            # if they differ, so that we can generate the delta patch urls.
+            # We do this once and cache it after.  It's specifically not done
+            # on upload because we're already doing too much processing there.
+            # NOTE: this function will clear out patchset.data to reduce
+            # memory so don't ever call patchset.put() after calling it.
+            patch.delta = _calculate_delta(patch, patchset_id, patchsets)
+            patch.delta_calculated = True
+            # A multi-entity put would be quicker, but it fails when the
+            # patches have content that is large.  App Engine throws
+            # RequestTooLarge.  This way, although not as efficient, allows
+            # multiple refreshes on an issue to get things done, as opposed to
+            # an all-or-nothing approach.
+            patch.save()
+        # Reduce memory usage: if this patchset has lots of added/removed
+        # files (i.e. > 100) then we'll get MemoryError when rendering the
+        # response.  Each Patch entity is using a lot of memory if the files
+        # are large, since it holds the entire contents.  Call num_chunks and
+        # num_drafts first though since they depend on text.
+        patch.num_chunks
+        patch.num_drafts
+        patch.num_added
+        patch.num_removed
+        patch.text = None
+        patch._lines = None
+        patch.parsed_deltas = []
+        for delta in patch.delta:
+          patch.parsed_deltas.append([patchset_id_mapping[delta], delta])
   # Reduce memory usage (see above comment).
   for patchset in patchsets:
     patchset.parsed_patches = None
