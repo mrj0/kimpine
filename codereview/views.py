@@ -35,7 +35,6 @@ from xml.etree import ElementTree
 # AppEngine imports
 from google.appengine.api import users
 from google.appengine.ext import db
-from google.appengine.ext.db import djangoforms
 from google.appengine.runtime import DeadlineExceededError
 
 # Django imports
@@ -273,14 +272,14 @@ class EditLocalBaseForm(forms.Form):
     return None
 
 
-class RepoForm(djangoforms.ModelForm):
+class RepoForm(forms.ModelForm):
 
   class Meta:
     model = models.Repository
     exclude = ['owner']
 
 
-class BranchForm(djangoforms.ModelForm):
+class BranchForm(forms.ModelForm):
 
   class Meta:
     model = models.Branch
