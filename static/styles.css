@@ -99,8 +99,8 @@ a:visited.noul, a:visited.noulv {
 .newmove, .newchangemove, .newchangemove1,
 .udiffadd, .udiffremove, .udiff, .debug-info {
   white-space: pre;
-  font-family: monospace;
-  font-size: 12px;
+  font-family: 'Inconsolata', monospace;
+  font-size: 13px;
   vertical-align: top;
 }
 
