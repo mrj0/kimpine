@@ -34,7 +34,6 @@ from xml.etree import ElementTree
 
 # AppEngine imports
 from google.appengine.api import users
-from google.appengine.api import urlfetch
 from google.appengine.ext import db
 from google.appengine.ext.db import djangoforms
 from google.appengine.runtime import DeadlineExceededError
@@ -61,6 +60,7 @@ import models
 import engine
 import library
 import patching
+import urlfetch
 
 # Add our own template library.
 _library_name = __name__.rsplit('.', 1)[0] + '.library'

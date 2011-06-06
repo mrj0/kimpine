@@ -22,7 +22,6 @@ import logging
 import urlparse
 
 # AppEngine imports
-from google.appengine.api import urlfetch
 from google.appengine.api import users
 from google.appengine.ext import db
 
@@ -33,6 +32,7 @@ from django.template import loader, RequestContext
 import models
 import patching
 import intra_region_diff
+import urlfetch
 
 
 class FetchError(Exception):
