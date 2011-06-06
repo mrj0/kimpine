@@ -23,11 +23,13 @@ import time
 
 # AppEngine imports
 from google.appengine.ext import db
-from google.appengine.api import memcache
 
 # Local imports
 import engine
 import patching
+
+# Django imports
+from django.core.cache import cache
 
 
 CONTEXT_CHOICES = (3, 10, 25, 50, 75, 100)
@@ -750,7 +752,7 @@ class Account(db.Model):
     Returns:
       True if the user should call self._save_drafts(), False if not.
     """
-    drafts = memcache.get('user_drafts:' + self.email)
+    drafts = cache.get('user_drafts:' + self.email)
     if drafts is not None:
       self._drafts = drafts
       ##logging.info('HIT: %s -> %s', self.email, self._drafts)
@@ -767,7 +769,7 @@ class Account(db.Model):
   def _save_drafts(self):
     """Save self._drafts to memcache."""
     ##logging.info('SAVING: %s -> %s', self.email, self._drafts)
-    memcache.set('user_drafts:' + self.email, self._drafts, 3600)
+    cache.set('user_drafts:' + self.email, self._drafts, 3600)
 
   def get_xsrf_token(self, offset=0):
     """Return an XSRF token for the current user."""

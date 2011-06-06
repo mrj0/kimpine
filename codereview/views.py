@@ -33,7 +33,6 @@ from cStringIO import StringIO
 from xml.etree import ElementTree
 
 # AppEngine imports
-from google.appengine.api import memcache
 from google.appengine.api import users
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
@@ -55,6 +54,7 @@ from django.utils import simplejson
 from django.utils.safestring import mark_safe
 from django.core.urlresolvers import reverse
 from django.core.mail import EmailMessage
+from django.core.cache import cache
 
 # Local imports
 import models
@@ -3406,7 +3406,7 @@ def user_popup(request):
 
 def _user_popup(request):
   user = request.user_to_show
-  popup_html = memcache.get('user_popup:' + user.email())
+  popup_html = cache.get('user_popup:' + user.email())
   if popup_html is None:
     num_issues_created = models.Issue.objects.filter(
         closed__exact=False,
@@ -3423,7 +3423,7 @@ def _user_popup(request):
                              },
                              context_instance=RequestContext(request))
     # Use time expired cache because the number of issues will change over time
-    memcache.add('user_popup:' + user.email(), popup_html, 60)
+    cache.add('user_popup:' + user.email(), popup_html, 60)
   return popup_html
 
 

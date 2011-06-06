@@ -14,12 +14,12 @@ def nickname(email, arg=None):
     return library.nickname(email, arg)
 
 
-def show_user(email, arg=None, autoescape=None, memcache_results=None):
+def show_user(email, arg=None, autoescape=None):
     if isinstance(email, AnonymousUser):
         email = None
     elif isinstance(email, User):
         email.email = CallableString(email.email)
-    return library.show_user(email, arg, autoescape, memcache_results)
+    return library.show_user(email, arg, autoescape)
 
 
 # Make filters global

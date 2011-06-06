@@ -14,21 +14,36 @@
 
 """Django template library for Rietveld."""
 
+# Python imports
 import cgi
 import logging
 
-from google.appengine.api import memcache
+# app engine imports
 from google.appengine.api import users
 
+# django imports
 import django.template
 import django.utils.safestring
 from django.core.urlresolvers import reverse
+from django.core.cache import cache
 
+# local imports
 import models
 
 register = django.template.Library()
 
 user_cache = {}
+
+def cache_set_multi(mapping, key_prefix=''):
+  [cache.set('%s%s' % (key_prefix, key), mapping[key]) for key in mapping]
+  return []
+
+def cache_get_multi(self, keys, key_prefix=''):
+  mapping = {}
+  [mapping.setdefault(key, cache.get('%s%s' % (key_prefix, key)))
+   for key in keys
+   if '%s%s' % (key_prefix, key) in cache]
+  return mapping
 
 
 def get_links_for_users(user_emails):
@@ -51,12 +66,12 @@ def get_links_for_users(user_emails):
     return link_dict
 
   # then look in memcache
-  memcache_results = memcache.get_multi(remaining_emails,
+  cache_results = cache_get_multi(remaining_emails,
                                         key_prefix="show_user:")
-  for email in memcache_results:
-    link_dict[email] = memcache_results[email]
-    user_cache[email] = memcache_results[email]
-  remaining_emails = remaining_emails - set(memcache_results)
+  for email in cache_results:
+    link_dict[email] = cache_results[email]
+    user_cache[email] = cache_results[email]
+  remaining_emails = remaining_emails - set(cache_results)
 
   if not remaining_emails:
     return link_dict
@@ -71,7 +86,7 @@ def get_links_for_users(user_emails):
       link_dict[account.email] = ret
     
   datastore_results = dict((e, link_dict[e]) for e in remaining_emails)
-  memcache.set_multi(datastore_results, 300, key_prefix='show_user:')
+  cache_set_multi(datastore_results, key_prefix='show_user:')
   user_cache.update(datastore_results)
 
   return link_dict
@@ -84,7 +99,7 @@ def get_link_for_user(email):
 
 
 @register.filter
-def show_user(email, arg=None, autoescape=None, memcache_results=None):
+def show_user(email, arg=None, autoescape=None):
   """Render a link to the user's dashboard, with text being the nickname."""
   if isinstance(email, users.User):
     email = email.email()
