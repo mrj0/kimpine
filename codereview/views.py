@@ -35,7 +35,6 @@ from xml.etree import ElementTree
 # AppEngine imports
 from google.appengine.api import users
 from google.appengine.ext import db
-from google.appengine.runtime import DeadlineExceededError
 
 # Django imports
 # TODO(guido): Don't import classes/functions directly.
@@ -503,9 +502,6 @@ def respond(request, template, params=None):
   try:
     return render_to_response(template, params,
                               context_instance=RequestContext(request))
-  except DeadlineExceededError:
-    logging.exception('DeadlineExceededError')
-    return HttpResponse('DeadlineExceededError', status=503)
   except MemoryError:
     logging.exception('MemoryError')
     return HttpResponse('MemoryError', status=503)
@@ -1706,14 +1702,6 @@ def _get_patchset_info(request, patchset_id):
           patch.parsed_deltas = []
           for delta in patch.delta:
             patch.parsed_deltas.append([patchset_id_mapping[delta], delta])
-      except DeadlineExceededError:
-        logging.exception('DeadlineExceededError in _get_patchset_info')
-        if attempt > 2:
-          response = HttpResponse('DeadlineExceededError - create a new issue.')
-        else:
-          response = HttpResponseRedirect('%s?attempt=%d' %
-                                          (request.path, attempt + 1))
-        break
   # Reduce memory usage (see above comment).
   for patchset in patchsets:
     patchset.parsed_patches = None
