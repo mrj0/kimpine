@@ -3399,7 +3399,7 @@ def _user_popup(request):
         owner__exact=user).count()
     num_issues_reviewed = models.Issue.objects.filter(
         closed__exact=False,
-        reviewers__contains=user.email()).count()
+        reviewers__exact=user.email()).count()
 
     user.nickname = models.Account.get_nickname_for_email(user.email())
     popup_html = render_to_response('user_popup.html',
