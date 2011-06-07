@@ -1598,10 +1598,8 @@ def _calculate_delta(patch, patchset_id, patchsets):
       # other (patchset) is too big to hold all the patches inside itself, so
       # we need to go to the datastore.  Use the index to see if there's a
       # patch against our current file in other.
-      query = models.Patch.all()
-      query.filter("filename =", patch.filename)
-      query.filter("patchset =", other.key())
-      other_patches = query.fetch(100)
+      other_patches = models.Patch.objects.filter(filename__exact=patch.filename,
+                                                  patchset__exact=other)[:100]
       if other_patches and len(other_patches) > 1:
         logging.info("Got %s patches with the same filename for a patchset",
                      len(other_patches))
