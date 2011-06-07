@@ -35,32 +35,6 @@ from django.core.cache import cache
 CONTEXT_CHOICES = (3, 10, 25, 50, 75, 100)
 
 
-### GQL query cache ###
-
-
-_query_cache = {}
-
-
-def gql(cls, clause, *args, **kwds):
-  """Return a query object, from the cache if possible.
-
-  Args:
-    cls: a db.Model subclass.
-    clause: a query clause, e.g. 'WHERE draft = TRUE'.
-    *args, **kwds: positional and keyword arguments to be bound to the query.
-
-  Returns:
-    A db.GqlQuery instance corresponding to the query with *args and
-    **kwds bound to the query.
-  """
-  query_string = 'SELECT * FROM %s %s' % (cls.kind(), clause)
-  query = _query_cache.get(query_string)
-  if query is None:
-    _query_cache[query_string] = query = db.GqlQuery(query_string)
-  query.bind(*args, **kwds)
-  return query
-
-
 ### Issues, PatchSets, Patches, Contents, Comments, Messages ###
 
 
