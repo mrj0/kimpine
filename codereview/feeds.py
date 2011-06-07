@@ -29,7 +29,7 @@ def _enforce_account_by_email(fn):
     if account is None:
       return []
     else:
-      return fn(self, account):
+      return fn(self, account)
   return inner
 
 

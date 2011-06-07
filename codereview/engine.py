@@ -335,8 +335,7 @@ def _RenderDiff2TableRows(request, old_lines, old_patch, new_lines, new_patch,
   new_dict = {}
   for patch, dct in [(old_patch, old_dict), (new_patch, new_dict)]:
     # XXX GQL doesn't support OR yet...  Otherwise we'd be using that.
-    for comment in models.Comment.gql(
-        'WHERE patch = :1 AND left = FALSE ORDER BY date', patch):
+    for comment in models.Comment.objects.filter(patch__exact=patch, left__exact=False).order_by('date'):
       if comment.draft and comment.author != request.user:
         continue  # Only show your own drafts
       comment.complete(patch)
@@ -380,8 +379,7 @@ def _GetComments(request):
   # XXX GQL doesn't support OR yet...  Otherwise we'd be using
   # .gql('WHERE patch = :1 AND (draft = FALSE OR author = :2) ORDER BY data',
   #      patch, request.user)
-  for comment in models.Comment.gql('WHERE patch = :1 ORDER BY date',
-                                    request.patch):
+  for comment in models.Comment.objects.filter(patch__exact=request.patch).order_by('date'):
     if comment.draft and comment.author != request.user:
       continue  # Only show your own drafts
     comment.complete(request.patch)
