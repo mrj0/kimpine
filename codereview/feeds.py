@@ -23,6 +23,15 @@ from django.utils.feedgenerator import Atom1Feed
 import library
 import models
 
+def _enforce_account_by_email(fn):
+  def inner(self, obj):
+    account = models.Account.get_account_for_email(obj.email)
+    if account is None:
+      return []
+    else:
+      return fn(self, account):
+  return inner
+
 
 class BaseFeed(Feed):
   title = 'Code Review'
@@ -98,32 +107,33 @@ class BaseUserFeed(BaseFeed):
 class ReviewsFeed(BaseUserFeed):
   title = 'Code Review - All issues I have to review'
 
-  def items(self, obj):
-    return _rss_helper(obj.email, 'closed = FALSE AND reviewers = :1',
-                       use_email=True)
+  @_enforce_account_by_email
+  def items(self, account):
+    return _rss_helper(Issue.objects.filter(closed__exact=False, reviewers__exact=account.email))
 
 
 class ClosedFeed(BaseUserFeed):
   title = "Code Review - Reviews closed by me"
 
-  def items(self, obj):
-    return _rss_helper(obj.email, 'closed = TRUE AND owner = :1')
+  @_enforce_account_by_email
+  def items(self, account):
+    return _rss_helper(Issue.objects.filter(closed__exact=True, owner__exact=account.user))
 
 
 class MineFeed(BaseUserFeed):
   title = 'Code Review - My issues'
 
-  def items(self,obj):
-    return _rss_helper(obj.email, 'closed = FALSE AND owner = :1')
+  @_enforce_account_by_email
+  def items(self, account):
+    return _rss_helper(Issue.objects.filter(closed__exact=False, owner__exact=account.user))
 
 
 class AllFeed(BaseFeed):
   title = 'Code Review - All issues'
 
   def items(self):
-    query = models.Issue.gql('WHERE closed = FALSE AND private = FALSE '
-                             'ORDER BY modified DESC')
-    return query.fetch(RSS_LIMIT)
+    return models.Issue.objects.filter(closed__exact=False,
+                                       private__exact=False).order_by('-modified')[:RSS_LIMIT]
 
 
 class OneIssueFeed(BaseFeed):
@@ -154,13 +164,5 @@ class OneIssueFeed(BaseFeed):
 # Maximum number of issues reported by RSS feeds
 RSS_LIMIT = 20
 
-def _rss_helper(email, query_string, use_email=False):
-  account = models.Account.get_account_for_email(email)
-  if account is None:
-    issues = []
-  else:
-    query = models.Issue.gql('WHERE %s AND private = FALSE '
-                             'ORDER BY modified DESC' % query_string,
-                             use_email and account.email or account.user)
-    issues = query.fetch(RSS_LIMIT)
-  return issues
+def _rss_helper(email, query_set):
+  return query_set.filter(private__exact=False).order_by('-modified')[:RSS_LIMIT]
