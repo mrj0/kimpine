@@ -147,10 +147,10 @@ class IssueBaseForm(forms.Form):
       if not b.repo_name:
         b.repo_name = b.repo.name
         b.save()
-      pair = (b.key(), '%s - %s - %s' % (b.repo_name, b.category, b.name))
+      pair = (b.id, '%s - %s - %s' % (b.repo_name, b.category, b.name))
       choices.append(pair)
       if default is None and (base is None or b.url == base):
-        default = b.key()
+        default = b.id
     choices.sort(key=lambda pair: pair[1].lower())
     choices.insert(0, ('', '[See Base]'))
     bound_field.field.choices = choices
@@ -162,7 +162,7 @@ class IssueBaseForm(forms.Form):
     if not base:
       key = self.cleaned_data['branch']
       if key:
-        branch = models.Branch.get(key)
+        branch = _first_or_none(models.Branch.objects.filter(pk=key))
         if branch is not None:
           base = branch.url
     if not base:
