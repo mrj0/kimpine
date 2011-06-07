@@ -2732,8 +2732,8 @@ def _get_mail_template(request, issue):
   context = {}
   template = 'mails/comment.txt'
   if request.user == issue.owner:
-    if not models.Message.filter(issue__exact=issue,
-                                 sender__exact=db.Email(request.user.email())).exists():
+    if not models.Message.objects.filter(issue__exact=issue,
+                                         sender__exact=db.Email(request.user.email())).exists():
       template = 'mails/review.txt'
       files, patch = _get_affected_files(issue)
       context.update({'files': files, 'patch': patch, 'base': issue.base})
@@ -2860,9 +2860,9 @@ def _get_draft_comments(request, issue, preview=False):
   tbd = []
   # XXX Should request all drafts for this issue once, now we can.
   for patchset in issue.patchset_set.order('created'):
-    ps_comments = models.Comment.filter(patchset__exact=patchset,
-                                        author__exact=request.user,
-                                        draft__exact=True)
+    ps_comments = models.Comment.objects.filter(patchset__exact=patchset,
+                                                author__exact=request.user,
+                                                draft__exact=True)
     if ps_comments:
       patches = dict((p.key(), p) for p in patchset.patch_set)
       for p in patches.itervalues():
@@ -3177,7 +3177,7 @@ def search(request):
     'cursor': form.cleaned_data['cursor'],
   }
   if keys_only:
-    data['results'] = [i.id() for i in filtered_results]
+    data['results'] = [i.id for i in filtered_results]
   else:
     messages = form.cleaned_data['with_messages']
     data['results'] = [_issue_as_dict(i, messages, request)
@@ -3477,8 +3477,7 @@ def _process_incoming_mail(raw_message, recipients):
   all_emails = [str(x).lower()
                 for x in [issue.owner.email()]+issue.reviewers+issue.cc]
   if sender.lower() not in all_emails:
-    query = models.Account.all().filter('lower_email =', sender.lower())
-    account = query.get()
+    account = _first_or_none(models.Account.objects.filter(lower_email__exact=sender.lower()))
     if account is not None:
       issue.reviewers.append(account.email)  # e.g. account.email is CamelCase
     else:
