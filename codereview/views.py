@@ -2487,7 +2487,7 @@ def _get_comment_counts(account, patchset):
   """
   # A key-only query won't work because we need to fetch the patch key
   # in the for loop further down.
-  comment_query = models.Comment.all()
+  comment_query = models.Comment.objects.all()
   comment_query.ancestor(patchset)
 
   # Get all comment counts with one query rather than one per patch.
