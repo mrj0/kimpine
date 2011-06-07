@@ -1901,7 +1901,7 @@ def delete_patchset(request):
   issue = request.issue
   ps_delete = request.patchset
   ps_id = ps_delete.id
-  patchsets_after = issue.patchset_set.filter('created >', ps_delete.created)
+  patchsets_after = issue.patchset_set.filter(created__lt=ps_delete.created)
   patches = []
   for patchset in patchsets_after:
     for patch in patchset.patch_set:
@@ -3140,19 +3140,19 @@ def search(request):
   format = form.cleaned_data.get('format') or 'html'
   if format == 'html':
     keys_only = False
-  q = models.Issue.all(keys_only=keys_only)
+  q = models.Issue.objects.filter(keys_only=keys_only)
   if form.cleaned_data.get('cursor'):
     q.with_cursor(form.cleaned_data['cursor'])
   if form.cleaned_data.get('closed') != None:
-    q.filter('closed = ', form.cleaned_data['closed'])
+    q.filter(closed__exact=form.cleaned_data['closed'])
   if form.cleaned_data.get('owner'):
-    q.filter('owner = ', form.cleaned_data['owner'])
+    q.filter(owner__exact=form.cleaned_data['owner'])
   if form.cleaned_data.get('reviewer'):
-    q.filter('reviewers = ', form.cleaned_data['reviewer'])
+    q.filter(reviewers__exact=, form.cleaned_data['reviewer'])
   if form.cleaned_data.get('private') != None:
-    q.filter('private = ', form.cleaned_data['private'])
+    q.filter(private__exact=form.cleaned_data['private'])
   if form.cleaned_data.get('base'):
-    q.filter('base = ', form.cleaned_data['base'])
+    q.filter(base__exact=form.cleaned_data['base'])
   # Update the cursor value in the result.
   if format == 'html':
     nav_params = dict(
