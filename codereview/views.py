@@ -1759,11 +1759,10 @@ def account(request):
   def searchAccounts(property, added, response):
     query = request.GET.get('q').lower()
     limit = _clean_int(request.GET.get('limit'), 10, 10, 100)
+    filter_args = { "lower_%s__gte" % property: query,
+                    "lower_%s__lt" % property: query + u"\ufffd" }
 
-    accounts = models.Account.all()
-    accounts.filter("lower_%s >= " % property, query)
-    accounts.filter("lower_%s < " % property, query + u"\ufffd")
-    accounts.order("lower_%s" % property);
+    accounts = models.Account.filter(**filter_args).order_by("lower_%s" % property)
     for account in accounts:
       if account.key() in added:
         continue
