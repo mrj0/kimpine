@@ -3148,7 +3148,7 @@ def search(request):
   if form.cleaned_data.get('owner'):
     q.filter(owner__exact=form.cleaned_data['owner'])
   if form.cleaned_data.get('reviewer'):
-    q.filter(reviewers__exact=, form.cleaned_data['reviewer'])
+    q.filter(reviewers__exact=form.cleaned_data['reviewer'])
   if form.cleaned_data.get('private') != None:
     q.filter(private__exact=form.cleaned_data['private'])
   if form.cleaned_data.get('base'):
