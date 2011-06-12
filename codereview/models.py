@@ -572,10 +572,8 @@ class Account(db.Model):
   def create_nickname_for_user(cls, user):
     """Returns a unique nickname for a user."""
     name = nickname = user.email.split('@', 1)[0]
-    next_char = chr(ord(nickname[0].lower())+1)
-    existing_nicks = [account.lower_nickname
-                      for account in cls.objects.filter(lower_nickname__gte=nickname.lower(),
-                                                        lower_nickname__lt=next_char)]
+    existing_nicks = [account.nickname.lower()
+                      for account in cls.objects.filter(nickname__istartswith="%s" % nickname)]
     suffix = 0
     while nickname.lower() in existing_nicks:
       suffix += 1
@@ -649,7 +647,7 @@ class Account(db.Model):
     """Get the list of Accounts that have this nickname."""
     assert nickname
     assert '@' not in nickname
-    return cls.all().filter('lower_nickname =', nickname.lower()).get()
+    return cls.objects.filter(nickname_ilike=nickname)
 
   @classmethod
   def get_email_for_nickname(cls, nickname):
