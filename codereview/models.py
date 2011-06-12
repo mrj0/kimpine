@@ -749,10 +749,10 @@ class Account(db.Model):
       self.xsrf_secret = os.urandom(8)
       self.save()
     m = md5.new(self.xsrf_secret)
-    email_str = self.lower_email
+    email_str = self.email.lower()
     if isinstance(email_str, unicode):
       email_str = email_str.encode('utf-8')
-    m.update(self.lower_email)
+    m.update(email_str)
     when = int(time.time()) // 3600 + offset
     m.update(str(when))
     return m.hexdigest()
