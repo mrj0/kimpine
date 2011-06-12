@@ -2943,8 +2943,6 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
   my_email = db.Email(request.user.email())
   to = [db.Email(issue.owner.email())] + issue.reviewers
   cc = issue.cc[:]
-  if django_settings.RIETVELD_INCOMING_MAIL_ADDRESS:
-    cc.append(db.Email(django_settings.RIETVELD_INCOMING_MAIL_ADDRESS))
   reply_to = to + cc
   if my_email in to and len(to) > 1:  # send_mail() wants a non-empty to list
     to.remove(my_email)
@@ -3408,82 +3406,6 @@ def _user_popup(request):
     # Use time expired cache because the number of issues will change over time
     cache.add('user_popup:' + user.email(), popup_html, 60)
   return popup_html
-
-
-@post_required
-def incoming_mail(request, recipients):
-  """/_ah/mail/(.*)
-
-  Handle incoming mail messages.
-
-  The issue is not modified. No reviewers or CC's will be added or removed.
-  """
-  try:
-    _process_incoming_mail(request.raw_post_data, recipients)
-  except InvalidIncomingEmailError, err:
-    logging.debug(str(err))
-  return HttpResponse('')
-
-
-def _process_incoming_mail(raw_message, recipients):
-  """Process an incoming email message."""
-  recipients = [x[1] for x in email.utils.getaddresses([recipients])]
-
-  # We can't use mail.InboundEmailMessage(raw_message) here.
-  # See: http://code.google.com/p/googleappengine/issues/detail?id=2326
-  # msg = mail.InboundEmailMessage(raw_message)
-  # The code below needs to be adjusted when issue2326 is fixed.
-  incoming_msg = email.message_from_string(raw_message)
-
-  if 'X-Google-Appengine-App-Id' in incoming_msg:
-    raise InvalidIncomingEmailError('Mail sent by App Engine')
-
-  subject = incoming_msg.get('Subject', '')
-  match = re.search(r'\(issue *(?P<id>\d+)\)$', subject)
-  if match is None:
-    raise InvalidIncomingEmailError('No issue id found: %s', subject)
-  issue_id = int(match.groupdict()['id'])
-  issue = models.Issue.get_by_id(issue_id)
-  if issue is None:
-    raise InvalidIncomingEmailError('Unknown issue ID: %d' % issue_id)
-  sender = email.utils.parseaddr(incoming_msg.get('From', None))[1]
-
-  body = None
-  charset = None
-  if incoming_msg.is_multipart():
-    for payload in incoming_msg.get_payload():
-      if payload.get_content_type() == 'text/plain':
-        body = payload.get_payload(decode=True)
-        charset = payload.get_content_charset()
-        break
-  else:
-    body = incoming_msg.get_payload(decode=True)
-    charset = incoming_msg.get_content_charset()
-  if body is None or not body.strip():
-    raise InvalidIncomingEmailError('Ignoring empty message.')
-
-  # If the subject is long, this might come wrapped into more than one line.
-  subject = ' '.join([x.strip() for x in subject.splitlines()])
-  msg = models.Message(issue=issue, parent=issue,
-                       subject=subject,
-                       sender=db.Email(sender),
-                       recipients=[db.Email(x) for x in recipients],
-                       date=datetime.datetime.now(),
-                       text=db.Text(body, encoding=charset),
-                       draft=False)
-  msg.save()
-
-  # Add sender to reviewers if needed.
-  all_emails = [str(x).lower()
-                for x in [issue.owner.email()]+issue.reviewers+issue.cc]
-  if sender.lower() not in all_emails:
-    account = _first_or_none(models.Account.objects.filter(lower_email__exact=sender.lower()))
-    if account is not None:
-      issue.reviewers.append(account.email)  # e.g. account.email is CamelCase
-    else:
-      issue.reviewers.append(db.Email(sender))
-    issue.save()
-
 
 @login_required
 def xsrf_token(request):

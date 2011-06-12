@@ -76,7 +76,6 @@ urlpatterns = patterns(
     (r'^(?P<issue_id>\d+)/patchset/(?P<patchset_id>\d+)/delete$', 'delete_patchset'),
     (r'^account$', 'account'),
     (r'^use_uploadpy$', 'use_uploadpy'),
-    (r'^_ah/mail/(?P<recipients>.*)', 'incoming_mail'),
     (r'^xsrf_token$', 'xsrf_token'),
     # patching upload.py on the fly
     (r'^dynamic/upload.py$', 'customized_upload_py'),
