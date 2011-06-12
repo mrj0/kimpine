@@ -105,8 +105,8 @@ class Issue(db.Model):
 
   def _get_num_comments(self):
     """Helper to compute the number of comments through a query."""
-    return Comment.objects.filter(patch__patchset__issue__exact=self,
-                                  draft__exact=False).count()
+    return Comment.objects.filter(patch__patchset__issue=self,
+                                  draft=False).count()
 
   _num_drafts = None
 
@@ -121,9 +121,9 @@ class Issue(db.Model):
       if account is None:
         self._num_drafts = 0
       else:
-        query = Comment.objects.filter(patch__patchset__issue__exact=self,
-                                       author__exact=account.user,
-                                       draft__exact=True)
+        query = Comment.objects.filter(patch__patchset__issue=self,
+                                       author=account.user,
+                                       draft=True)
         self._num_drafts = query.count()
     return self._num_drafts
 
@@ -307,8 +307,8 @@ class Patch(db.Model):
     The value is cached.
     """
     if self._num_comments is None:
-      self._num_comments = Comment.objects.filter(patch__exact=self,
-                                                  draft__exact=False).count()
+      self._num_comments = Comment.objects.filter(patch=self,
+                                                  draft=False).count()
     return self._num_comments
 
   _num_drafts = None
@@ -324,9 +324,9 @@ class Patch(db.Model):
       if account is None:
         self._num_drafts = 0
       else:
-        query = Comment.objects.filter(patch__exact=self,
-                                       draft__exact=True,
-                                       author__exact=account.user)
+        query = Comment.objects.filter(patch=self,
+                                       draft=True,
+                                       author=account.user)
         self._num_drafts = query.count()
     return self._num_drafts
 
@@ -734,8 +734,8 @@ class Account(db.Model):
     # We're looking for the Issue key id.  The ancestry of comments goes:
     # Issue -> PatchSet -> Patch -> Comment.
     issue_ids = set(comment.patch.patchset.issue.id
-                    for comment in Comment.objects.filter(author__exact=self.user,
-                                                          draft__exact=True))
+                    for comment in Comment.objects.filter(author=self.user,
+                                                          draft=True))
     self._drafts = list(issue_ids)
     ##logging.info('INITIALIZED: %s -> %s', self.email, self._drafts)
     return True

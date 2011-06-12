@@ -363,7 +363,7 @@ class SettingsForm(forms.Form):
       raise forms.ValidationError('Choose a different nickname.')
 
     # Look for existing nicknames
-    accounts = models.Account.objects.filter(lower_nickname__exact=nickname.lower())
+    accounts = models.Account.objects.filter(lower_nickname=nickname.lower())
     for account in accounts:
       if account == models.Account.current_user_account:
         continue
@@ -766,8 +766,8 @@ def patch_filename_required(func):
 
   @patchset_required
   def patch_wrapper(request, patch_filename, *args, **kwds):
-    patch = _first_or_none(models.Patch.objects.filter(patchset__exact=request.patchset,
-                                                       filename__exact=patch_filename))
+    patch = _first_or_none(models.Patch.objects.filter(patchset=request.patchset,
+                                                       filename=patch_filename))
     if patch is None and patch_filename.isdigit():
       # It could be an old URL which has a patch ID instead of a filename
       patch = _get_or_none(models.Patch, patch_filename)
@@ -998,10 +998,10 @@ def all(request):
     nav_parameters['closed'] = '1'
 
   if closed:
-    query = models.Issue.objects.filter(private__exact=False).order_by('-modified')
+    query = models.Issue.objects.filter(private=False).order_by('-modified')
   else:
-    query = models.Issue.objects.filter(private__exact=False,
-                                        closed__exact=False).order_by('-modified')
+    query = models.Issue.objects.filter(private=False,
+                                        closed=False).order_by('-modified')
 
   return _paginate_issues(reverse(all),
                           request,
@@ -1072,28 +1072,28 @@ def show_user(request):
 def _show_user(request):
   user = request.user_to_show
   if user == request.user:
-    query = models.Comment.objects.filter(draft__exact=True, author__exact=request.user)[:100]
+    query = models.Comment.objects.filter(draft=True, author=request.user)[:100]
     draft_keys = set(d.patch.patchset.issue.id for d in query)
     draft_issues = models.Issue.objects.filter(pk__in=draft_keys)
   else:
     draft_issues = draft_keys = []
   my_issues = [issue for issue in
-      models.Issue.objects.filter(closed__exact=False,
-                                  owner__exact=user).order_by('-modified')
+      models.Issue.objects.filter(closed=False,
+                                  owner=user).order_by('-modified')
       if issue.id not in draft_keys and _can_view_issue(request.user, issue)]
   review_issues = [issue for issue in
-      models.Issue.objects.filter(closed__exact=False,
-                                  reviewers__exact=user.email().lower()).order_by('-modified')
+      models.Issue.objects.filter(closed=False,
+                                  reviewers=user.email().lower()).order_by('-modified')
       if (issue.id not in draft_keys and issue.owner != user
           and _can_view_issue(request.user, issue))]
   closed_issues = [issue for issue in
-      models.Issue.objects.filter(closed__exact=True,
+      models.Issue.objects.filter(closed=True,
                                   modified__gt=datetime.datetime.now() - datetime.timedelta(days=7),
-                                  owner__exact=user).order_by('-modified')
+                                  owner=user).order_by('-modified')
       if issue.id not in draft_keys and _can_view_issue(request.user, issue)]
   cc_issues = [issue for issue in
-      models.Issue.objects.filter(closed__exact=False,
-                                  cc__exact=user.email()).order_by('-modified')
+      models.Issue.objects.filter(closed=False,
+                                  cc=user.email()).order_by('-modified')
       if (issue.id not in draft_keys and issue.owner != user
           and _can_view_issue(request.user, issue))]
 
@@ -1601,8 +1601,8 @@ def _calculate_delta(patch, patchset_id, patchsets):
       # other (patchset) is too big to hold all the patches inside itself, so
       # we need to go to the datastore.  Use the index to see if there's a
       # patch against our current file in other.
-      other_patches = models.Patch.objects.filter(filename__exact=patch.filename,
-                                                  patchset__exact=other)[:100]
+      other_patches = models.Patch.objects.filter(filename=patch.filename,
+                                                  patchset=other)[:100]
       if other_patches and len(other_patches) > 1:
         logging.info("Got %s patches with the same filename for a patchset",
                      len(other_patches))
@@ -1641,13 +1641,13 @@ def _get_patchset_info(request, patchset_id):
     patchset_id = patchsets[-1].id
 
   if request.user:
-    drafts = models.Comment.objects.filter(patch__patchset__issue__exact=issue,
-                                           draft__exact=True,
-                                           author__exact=request.user)
+    drafts = models.Comment.objects.filter(patch__patchset__issue=issue,
+                                           draft=True,
+                                           author=request.user)
   else:
     drafts = []
-  comments = models.Comment.objects.filter(patch__patchset__issue__exact=issue,
-                                           draft__exact=False)
+  comments = models.Comment.objects.filter(patch__patchset__issue=issue,
+                                           draft=False)
   issue.draft_count = len(drafts)
   for c in drafts:
     c.ps_key = c.patch.patchset.key()
@@ -2112,7 +2112,7 @@ def _issue_as_dict(issue, messages, request=None):
         'text': m.text,
         'approval': m.approval,
       }
-      for m in models.Message.objects.filter(issue__exact=issue)
+      for m in models.Message.objects.filter(issue=issue)
     ]
   return values
 
@@ -2131,7 +2131,7 @@ def _patchset_as_dict(patchset, request=None):
     'num_comments': patchset.num_comments,
     'files': {},
   }
-  for patch in models.Patch.objects.filter(patchset__exact=patchset):
+  for patch in models.Patch.objects.filter(patchset=patchset):
     # num_comments and num_drafts are left out for performance reason:
     # they cause a datastore query on first access. They could be added
     # optionally if the need ever arises.
@@ -2375,8 +2375,8 @@ def _get_diff2_data(request, ps_left_id, ps_right_id, patch_id, context,
     if patch_filename is None:
       patch_filename = patch_right.filename
   # Now find the corresponding patch in ps_left
-  patch_left = _first_or_none(models.Patch.objects.filter(patchset__exact=ps_left,
-                                                          filename__exact=patch_filename))
+  patch_left = _first_or_none(models.Patch.objects.filter(patchset=ps_left,
+                                                          filename=patch_filename))
 
   if patch_left:
     try:
@@ -2423,8 +2423,8 @@ def diff2(request, ps_left_id, ps_right_id, patch_filename):
   patch_right = None
 
   if ps_right:
-    patch_right = _first_or_none(models.Patch.objects.filter(patchset__exact=ps_right,
-                                                             filename__exact=patch_filename))
+    patch_right = _first_or_none(models.Patch.objects.filter(patchset=ps_right,
+                                                             filename=patch_filename))
 
   if patch_right:
     patch_id = patch_right.id
@@ -2509,7 +2509,7 @@ def _get_comment_counts(account, patchset):
 def _add_next_prev(patchset, patch):
   """Helper to add .next and .prev attributes to a patch object."""
   patch.prev = patch.next = None
-  patches = models.Patch.objects.filter(patchset__exact=patchset).order_by('filename')
+  patches = models.Patch.objects.filter(patchset=patchset).order_by('filename')
   patchset.patches = patches  # Required to render the jump to select.
 
   comments_by_patch, drafts_by_patch = _get_comment_counts(
@@ -2551,7 +2551,7 @@ def _add_next_prev(patchset, patch):
 def _add_next_prev2(ps_left, ps_right, patch_right):
   """Helper to add .next and .prev attributes to a patch object."""
   patch_right.prev = patch_right.next = None
-  patches = models.Patch.objects.filter(patchset__exact=ps_right).order_by('filename')
+  patches = models.Patch.objects.filter(patchset=ps_right).order_by('filename')
   ps_right.patches = patches  # Required to render the jump to select.
 
   n_comments, n_drafts = _get_comment_counts(
@@ -2670,9 +2670,9 @@ def _inline_draft(request):
     # The actual count doesn't matter, just that there's at least one.
     models.Account.current_user_account.update_drafts(issue, 1)
 
-  query = models.Comment.objects.filter(patch__exact=patch,
-                                        lineno__exact=lineno,
-                                        left__exact=left).order_by('date')
+  query = models.Comment.objects.filter(patch=patch,
+                                        lineno=lineno,
+                                        left=left).order_by('date')
   comments = list(c for c in query if not c.draft or c.author == request.user)
   if comment is not None and comment.author is None:
     # Show anonymous draft even though we don't save it
@@ -2735,8 +2735,8 @@ def _get_mail_template(request, issue):
   context = {}
   template = 'mails/comment.txt'
   if request.user == issue.owner:
-    if not models.Message.objects.filter(issue__exact=issue,
-                                         sender__exact=db.Email(request.user.email())).exists():
+    if not models.Message.objects.filter(issue=issue,
+                                         sender=db.Email(request.user.email())).exists():
       template = 'mails/review.txt'
       files, patch = _get_affected_files(issue)
       context.update({'files': files, 'patch': patch, 'base': issue.base})
@@ -2755,9 +2755,9 @@ def publish(request):
     form_class = MiniPublishForm
   draft_message = None
   if not request.POST.get('message_only', None):
-    query = models.Message.objects.filter(issue__exact=issue,
-                                          sender__exact=request.user.email(),
-                                          draft__exact=True)
+    query = models.Message.objects.filter(issue=issue,
+                                          sender=request.user.email(),
+                                          draft=True)
     draft_message = _first_or_none(query)
   if request.method != 'POST':
     reviewers = issue.reviewers[:]
@@ -2863,9 +2863,9 @@ def _get_draft_comments(request, issue, preview=False):
   tbd = []
   # XXX Should request all drafts for this issue once, now we can.
   for patchset in issue.patchset_set.order('created'):
-    ps_comments = models.Comment.objects.filter(patchset__exact=patchset,
-                                                author__exact=request.user,
-                                                draft__exact=True)
+    ps_comments = models.Comment.objects.filter(patchset=patchset,
+                                                author=request.user,
+                                                draft=True)
     if ps_comments:
       patches = dict((p.key(), p) for p in patchset.patch_set)
       for p in patches.itervalues():
@@ -3065,9 +3065,9 @@ def draft_message(request):
   time out after 1 or 2 hours.  The final submit of the drafts for
   others to view *is* XSRF-protected.
   """
-  query = models.Message.objects.filter(issue__exact=request.issue,
-                                        sender__exact=request.user.email(),
-                                        draft__exact=True)
+  query = models.Message.objects.filter(issue=request.issue,
+                                        sender=request.user.email(),
+                                        draft=True)
   draft_message = _first_or_none(query)
   if request.method == 'GET':
     return _get_draft_message(request, draft_message)
@@ -3145,15 +3145,15 @@ def search(request):
   if form.cleaned_data.get('cursor'):
     q.with_cursor(form.cleaned_data['cursor'])
   if form.cleaned_data.get('closed') != None:
-    q.filter(closed__exact=form.cleaned_data['closed'])
+    q.filter(closed=form.cleaned_data['closed'])
   if form.cleaned_data.get('owner'):
-    q.filter(owner__exact=form.cleaned_data['owner'])
+    q.filter(owner=form.cleaned_data['owner'])
   if form.cleaned_data.get('reviewer'):
-    q.filter(reviewers__exact=form.cleaned_data['reviewer'])
+    q.filter(reviewers=form.cleaned_data['reviewer'])
   if form.cleaned_data.get('private') != None:
-    q.filter(private__exact=form.cleaned_data['private'])
+    q.filter(private=form.cleaned_data['private'])
   if form.cleaned_data.get('base'):
-    q.filter(base__exact=form.cleaned_data['base'])
+    q.filter(base=form.cleaned_data['base'])
   # Update the cursor value in the result.
   if format == 'html':
     nav_params = dict(
@@ -3192,7 +3192,7 @@ def search(request):
 def repos(request):
   """/repos - Show the list of known Subversion repositories."""
   # Clean up garbage created by buggy edits
-  bad_branches = models.Branch.objects.filter(owner__exact=None)
+  bad_branches = models.Branch.objects.filter(owner=None)
   if bad_branches:
     db.delete(bad_branches)
   repo_map = {}
@@ -3246,13 +3246,13 @@ BRANCHES = [
 @admin_required
 def repo_init(request):
   """/repo_init - Initialze the list of known Subversion repositories."""
-  python = _first_or_none(models.Repository.objects.filter(name__exact='Python'))
+  python = _first_or_none(models.Repository.objects.filter(name='Python'))
   if python is None:
     python = models.Repository(name='Python', url=SVN_ROOT)
     python.save()
     pybranches = []
   else:
-    pybranches = models.Branch.objects.filter(repo__exact=python)
+    pybranches = models.Branch.objects.filter(repo=python)
   for category, name, url in BRANCHES:
     url = python.url + url
     for br in pybranches:
@@ -3328,7 +3328,7 @@ def branch_delete(request, branch_id):
     return HttpResponseForbidden('You do not own this branch')
   repo = branch.repo
   branch.delete()
-  num_branches = models.Branch.objects.filter(repo__exact=repo).count()
+  num_branches = models.Branch.objects.filter(repo=repo).count()
   if not num_branches:
     # Even if we don't own the repository?  Yes, I think so!  Empty
     # repositories have no representation on screen.
@@ -3393,11 +3393,11 @@ def _user_popup(request):
   popup_html = cache.get('user_popup:' + user.email())
   if popup_html is None:
     num_issues_created = models.Issue.objects.filter(
-        closed__exact=False,
-        owner__exact=user).count()
+        closed=False,
+        owner=user).count()
     num_issues_reviewed = models.Issue.objects.filter(
-        closed__exact=False,
-        reviewers__exact=user.email()).count()
+        closed=False,
+        reviewers=user.email()).count()
 
     user.nickname = models.Account.get_nickname_for_email(user.email())
     popup_html = render_to_response('user_popup.html',

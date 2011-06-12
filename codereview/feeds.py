@@ -109,7 +109,7 @@ class ReviewsFeed(BaseUserFeed):
 
   @_enforce_account_by_email
   def items(self, account):
-    return _rss_helper(Issue.objects.filter(closed__exact=False, reviewers__exact=account.email))
+    return _rss_helper(Issue.objects.filter(closed=False, reviewers=account.email))
 
 
 class ClosedFeed(BaseUserFeed):
@@ -117,7 +117,7 @@ class ClosedFeed(BaseUserFeed):
 
   @_enforce_account_by_email
   def items(self, account):
-    return _rss_helper(Issue.objects.filter(closed__exact=True, owner__exact=account.user))
+    return _rss_helper(Issue.objects.filter(closed=True, owner=account.user))
 
 
 class MineFeed(BaseUserFeed):
@@ -125,15 +125,15 @@ class MineFeed(BaseUserFeed):
 
   @_enforce_account_by_email
   def items(self, account):
-    return _rss_helper(Issue.objects.filter(closed__exact=False, owner__exact=account.user))
+    return _rss_helper(Issue.objects.filter(closed=False, owner=account.user))
 
 
 class AllFeed(BaseFeed):
   title = 'Code Review - All issues'
 
   def items(self):
-    return models.Issue.objects.filter(closed__exact=False,
-                                       private__exact=False).order_by('-modified')[:RSS_LIMIT]
+    return models.Issue.objects.filter(closed=False,
+                                       private=False).order_by('-modified')[:RSS_LIMIT]
 
 
 class OneIssueFeed(BaseFeed):
@@ -165,4 +165,4 @@ class OneIssueFeed(BaseFeed):
 RSS_LIMIT = 20
 
 def _rss_helper(email, query_set):
-  return query_set.filter(private__exact=False).order_by('-modified')[:RSS_LIMIT]
+  return query_set.filter(private=False).order_by('-modified')[:RSS_LIMIT]
