@@ -162,7 +162,7 @@ class IssueBaseForm(forms.Form):
     if not base:
       key = self.cleaned_data['branch']
       if key:
-        branch = _first_or_none(models.Branch.objects.filter(pk=key))
+        branch = _first_or_none(models.Branch.objects.filter(id=key))
         if branch is not None:
           base = branch.url
     if not base:
@@ -515,6 +515,11 @@ def respond(request, template, params=None):
 def _first_or_none(query_set):
   return query_set[0] if query_set else None
 
+def _get_or_none(model, id):
+    try:
+        return model.objects.get(id)
+    except model.DoesNotExist:
+        return None
 
 def _random_bytes(n):
   """Helper returning a string of random bytes of given length."""
@@ -638,7 +643,7 @@ def issue_required(func):
   """Decorator that processes the issue_id handler argument."""
 
   def issue_wrapper(request, issue_id, *args, **kwds):
-    issue = models.Issue.get_by_id(int(issue_id))
+    issue = _get_or_none(models.Issue, issue_id)
     if issue is None:
       return HttpResponseNotFound('No issue exists with that id (%s)' %
                                   issue_id)
@@ -720,7 +725,7 @@ def patchset_required(func):
 
   @issue_required
   def patchset_wrapper(request, patchset_id, *args, **kwds):
-    patchset = models.PatchSet.get_by_id(int(patchset_id), parent=request.issue)
+    patchset = _get_or_none(models.PatchSet, patchset_id)
     if patchset is None:
       return HttpResponseNotFound('No patch set exists with that id (%s)' %
                                   patchset_id)
@@ -746,7 +751,7 @@ def patch_required(func):
 
   @patchset_required
   def patch_wrapper(request, patch_id, *args, **kwds):
-    patch = models.Patch.get_by_id(int(patch_id), parent=request.patchset)
+    patch = _get_or_none(models.Patch, patch_id)
     if patch is None:
       return HttpResponseNotFound('No patch exists with that id (%s/%s)' %
                                   (request.patchset.id, patch_id))
@@ -765,8 +770,7 @@ def patch_filename_required(func):
                                                        filename__exact=patch_filename))
     if patch is None and patch_filename.isdigit():
       # It could be an old URL which has a patch ID instead of a filename
-      patch = models.Patch.get_by_id(int(patch_filename),
-                                     parent=request.patchset)
+      patch = _get_or_none(models.Patch, patch_filename)
     if patch is None:
       return respond(request, 'diff_missing.html',
                      {'issue': request.issue,
@@ -1043,9 +1047,8 @@ def starred(request):
   if not stars:
     issues = []
   else:
-    issues = [issue for issue in models.Issue.get_by_id(stars)
-                    if issue is not None
-                    and _can_view_issue(request.user, issue)]
+    issues = [issue for issue in models.Issue.objects.filter(id__in=stars)
+                    if _can_view_issue(request.user, issue)]
     _load_users_for_issues(issues)
     _optimize_draft_counts(issues)
   return respond(request, 'starred.html', {'issues': issues})
@@ -1167,7 +1170,7 @@ def upload(request):
     issue_id = form.cleaned_data['issue']
     if issue_id:
       action = 'updated'
-      issue = models.Issue.get_by_id(issue_id)
+      issue = _get_or_none(models.Issue, issue_id)
       if issue is None:
         form.errors['issue'] = ['No issue exists with that id (%s)' %
                                 issue_id]
@@ -2353,18 +2356,18 @@ def _get_skipped_lines_response(rows, id_before, id_after, where, context):
 def _get_diff2_data(request, ps_left_id, ps_right_id, patch_id, context,
                     column_width, patch_filename=None):
   """Helper function that returns objects for diff2 views"""
-  ps_left = models.PatchSet.get_by_id(int(ps_left_id), parent=request.issue)
+  ps_left = _get_or_none(models.PatchSet, ps_left_id)
   if ps_left is None:
     return HttpResponseNotFound('No patch set exists with that id (%s)' %
                                 ps_left_id)
   ps_left.issue = request.issue
-  ps_right = models.PatchSet.get_by_id(int(ps_right_id), parent=request.issue)
+  ps_right = _get_or_none(models.PatchSet, ps_right_id)
   if ps_right is None:
     return HttpResponseNotFound('No patch set exists with that id (%s)' %
                                 ps_right_id)
   ps_right.issue = request.issue
   if patch_id is not None:
-    patch_right = models.Patch.get_by_id(int(patch_id), parent=ps_right)
+    patch_right = _get_or_none(models.Patch, patch_id)
   else:
     patch_right = None
   if patch_right is not None:
@@ -2416,7 +2419,7 @@ def diff2(request, ps_left_id, ps_right_id, patch_filename):
   context = _get_context_for_user(request)
   column_width = _get_column_width_for_user(request)
 
-  ps_right = models.PatchSet.get_by_id(int(ps_right_id), parent=request.issue)
+  ps_right = _get_or_none(models.PatchSet, ps_right_id)
   patch_right = None
 
   if ps_right:
@@ -2625,15 +2628,15 @@ def _inline_draft(request):
   side = request.POST.get('side')
   assert side in ('a', 'b'), repr(side)  # Display left (a) or right (b)
   issue_id = int(request.POST['issue'])
-  issue = models.Issue.get_by_id(issue_id)
+  issue = _get_or_none(models.Issue, issue_id)
   assert issue  # XXX
   patchset_id = int(request.POST.get('patchset') or
                     request.POST[side == 'a' and 'ps_left' or 'ps_right'])
-  patchset = models.PatchSet.get_by_id(int(patchset_id), parent=issue)
+  patchset = _get_or_none(models.PatchSet, patchset_id)
   assert patchset  # XXX
   patch_id = int(request.POST.get('patch') or
                  request.POST[side == 'a' and 'patch_left' or 'patch_right'])
-  patch = models.Patch.get_by_id(int(patch_id), parent=patchset)
+  patch = _get_or_none(models.Patch, patch_id)
   assert patch  # XXX
   text = request.POST.get('text')
   lineno = int(request.POST['lineno'])
@@ -3266,7 +3269,7 @@ def repo_init(request):
 @xsrf_required
 def branch_new(request, repo_id):
   """/branch_new/<repo> - Add a new Branch to a Repository record."""
-  repo = models.Repository.get_by_id(int(repo_id))
+  repo = _get_or_none(models.Repository, repo_id)
   if request.method != 'POST':
     # XXX Use repo.key() so that the default gets picked up
     form = BranchForm(initial={'repo': repo.key(),
@@ -3292,7 +3295,7 @@ def branch_new(request, repo_id):
 @xsrf_required
 def branch_edit(request, branch_id):
   """/branch_edit/<branch> - Edit a Branch record."""
-  branch = models.Branch.get_by_id(int(branch_id))
+  branch = _get_or_none(models.Branch, branch_id)
   if branch.owner != request.user:
     return HttpResponseForbidden('You do not own this branch')
   if request.method != 'POST':
@@ -3320,7 +3323,7 @@ def branch_edit(request, branch_id):
 @xsrf_required
 def branch_delete(request, branch_id):
   """/branch_delete/<branch> - Delete a Branch record."""
-  branch = models.Branch.get_by_id(int(branch_id))
+  branch = _get_or_none(models.Branch, branch_id)
   if branch.owner != request.user:
     return HttpResponseForbidden('You do not own this branch')
   repo = branch.repo

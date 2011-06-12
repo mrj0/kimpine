@@ -145,7 +145,7 @@ class OneIssueFeed(BaseFeed):
   def get_object(self, bits):
     if len(bits) != 1:
       raise ObjectDoesNotExist
-    obj = models.Issue.get_by_id(int(bits[0]))
+    obj = _get_or_none(models.Issue, bits[0])
     if obj:
       return obj
     raise ObjectDoesNotExist
