@@ -182,7 +182,7 @@ class Message(db.Model):
           True for line in self.text.lower().splitlines()
           if not line.strip().startswith('>') and 'lgtm' in line)
       # Must not be the issue owner
-      self._approval &= self.issue.owner.email() != self.sender
+      self._approval &= self.issue.owner.email != self.sender
     return self._approval
 
 
@@ -556,7 +556,7 @@ class Account(db.Model):
   @classmethod
   def get_account_for_user(cls, user):
     """Get the Account for a user, creating a default one if needed."""
-    email = user.email()
+    email = user.email
     assert email
     key = '<%s>' % email
     # Since usually the account already exists, first try getting it
@@ -571,7 +571,7 @@ class Account(db.Model):
   @classmethod
   def create_nickname_for_user(cls, user):
     """Returns a unique nickname for a user."""
-    name = nickname = user.email().split('@', 1)[0]
+    name = nickname = user.email.split('@', 1)[0]
     next_char = chr(ord(nickname[0].lower())+1)
     existing_nicks = [account.lower_nickname
                       for account in cls.objects.filter(lower_nickname__gte=nickname.lower(),

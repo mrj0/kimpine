@@ -102,10 +102,10 @@ def get_link_for_user(email):
 def show_user(email, arg=None, autoescape=None):
   """Render a link to the user's dashboard, with text being the nickname."""
   if isinstance(email, users.User):
-    email = email.email()
+    email = email.email
   if not arg:
     user = users.get_current_user()
-    if user is not None and email == user.email():
+    if user is not None and email == user.email:
       return 'me'
 
   ret = get_link_for_user(email)
@@ -119,7 +119,7 @@ def show_users(email_list, arg=None):
   new_email_list = []
   for email in email_list:
     if isinstance(email, users.User):
-      email = email.email()
+      email = email.email
     new_email_list.append(email)
 
   links = get_links_for_users(new_email_list)
@@ -127,7 +127,7 @@ def show_users(email_list, arg=None):
   if not arg:
     user = users.get_current_user()
     if user is not None:
-      links[user.email()] = 'me'
+      links[user.email] = 'me'
       
   return django.utils.safestring.mark_safe(', '.join(
       links[email] for email in email_list))
@@ -192,13 +192,13 @@ def get_nickname(email, never_me=False, request=None):
   cache the nickname returned by models.Account.get_nickname_for_email().
   """
   if isinstance(email, users.User):
-    email = email.email()
+    email = email.email
   if not never_me:
     if request is not None:
       user = request.user
     else:
       user = users.get_current_user()
-    if user is not None and email == user.email():
+    if user is not None and email == user.email:
       return 'me'
 
   if request is None:

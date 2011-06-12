@@ -440,7 +440,7 @@ class SearchForm(forms.Form):
   def clean_reviewer(self):
     user = self._clean_accounts('reviewer')
     if user:
-      return user.email()
+      return user.email
 
 
 ### Exceptions ###
@@ -553,7 +553,7 @@ def _clean_int(value, default, min_value=None, max_value=None):
 def _can_view_issue(user, issue):
   if user is None:
     return not issue.private
-  user_email = db.Email(user.email().lower())
+  user_email = user.email.lower()
   return (not issue.private
           or issue.owner == user
           or user_email in issue.cc
@@ -1057,7 +1057,7 @@ def _load_users_for_issues(issues):
   """Load all user links for a list of issues in one go."""
   user_dict = {}
   for i in issues:
-    for e in i.reviewers + i.cc + [i.owner.email()]:
+    for e in i.reviewers + i.cc + [i.owner.email]:
       # keeping a count lets you track total vs. distinct if you want
       user_dict[e] = user_dict.setdefault(e, 0) + 1
 
@@ -1083,7 +1083,7 @@ def _show_user(request):
       if issue.id not in draft_keys and _can_view_issue(request.user, issue)]
   review_issues = [issue for issue in
       models.Issue.objects.filter(closed=False,
-                                  reviewers=user.email().lower()).order_by('-modified')
+                                  reviewers=user.email.lower()).order_by('-modified')
       if (issue.id not in draft_keys and issue.owner != user
           and _can_view_issue(request.user, issue))]
   closed_issues = [issue for issue in
@@ -1093,7 +1093,7 @@ def _show_user(request):
       if issue.id not in draft_keys and _can_view_issue(request.user, issue)]
   cc_issues = [issue for issue in
       models.Issue.objects.filter(closed=False,
-                                  cc=user.email()).order_by('-modified')
+                                  cc=user.email).order_by('-modified')
       if (issue.id not in draft_keys and issue.owner != user
           and _can_view_issue(request.user, issue))]
 
@@ -1101,7 +1101,7 @@ def _show_user(request):
   _load_users_for_issues(all_issues)
   _optimize_draft_counts(all_issues)
   return respond(request, 'user.html',
-                 {'email': user.email(),
+                 {'email': user.email,
                   'my_issues': my_issues,
                   'review_issues': review_issues,
                   'closed_issues': closed_issues,
@@ -1539,14 +1539,14 @@ def _get_emails_from_raw(raw_emails, form=None, label=None):
           account = models.Account.get_account_for_nickname(email)
           if account is None:
             raise db.BadValueError('Invalid user: %s' % email)
-          db_email = db.Email(account.user.email().lower())
+          db_email = account.user.email.lower()
         elif email.count('@') != 1:
           raise db.BadValueError('Invalid email address: %s' % email)
         else:
           head, tail = email.split('@')
           if '.' not in tail:
             raise db.BadValueError('Invalid email address: %s' % email)
-          db_email = db.Email(email.lower())
+          db_email = email.lower()
       except db.BadValueError, err:
         if form:
           form.errors[label] = [unicode(err)]
@@ -1726,7 +1726,7 @@ def show(request, form=None):
   for msg in issue.message_set.order('date'):
     if not msg.draft:
       messages.append(msg)
-    elif msg.draft and request.user and msg.sender == request.user.email():
+    elif msg.draft and request.user and msg.sender == request.user.email:
       has_draft_message = True
   num_patchsets = len(patchsets)
   return respond(request, 'issue.html',
@@ -2090,7 +2090,7 @@ def _issue_as_dict(issue, messages, request=None):
   """Converts an issue into a dict."""
   values = {
     'owner': library.get_nickname(issue.owner, True, request),
-    'owner_email': issue.owner.email(),
+    'owner_email': issue.owner.email,
     'modified': str(issue.modified),
     'created': str(issue.created),
     'closed': issue.closed,
@@ -2123,7 +2123,7 @@ def _patchset_as_dict(patchset, request=None):
     'patchset': patchset.id,
     'issue': patchset.issue.id,
     'owner': library.get_nickname(patchset.issue.owner, True, request),
-    'owner_email': patchset.issue.owner.email(),
+    'owner_email': patchset.issue.owner.email,
     'message': patchset.message,
     'url': patchset.url,
     'created': str(patchset.created),
@@ -2736,7 +2736,7 @@ def _get_mail_template(request, issue):
   template = 'mails/comment.txt'
   if request.user == issue.owner:
     if not models.Message.objects.filter(issue=issue,
-                                         sender=db.Email(request.user.email())).exists():
+                                         sender=request.user.email).exists():
       template = 'mails/review.txt'
       files, patch = _get_affected_files(issue)
       context.update({'files': files, 'patch': patch, 'base': issue.base})
@@ -2756,17 +2756,17 @@ def publish(request):
   draft_message = None
   if not request.POST.get('message_only', None):
     query = models.Message.objects.filter(issue=issue,
-                                          sender=request.user.email(),
+                                          sender=request.user.email,
                                           draft=True)
     draft_message = _first_or_none(query)
   if request.method != 'POST':
     reviewers = issue.reviewers[:]
     cc = issue.cc[:]
-    if request.user != issue.owner and (request.user.email()
+    if request.user != issue.owner and (request.user.email
                                         not in issue.reviewers):
-      reviewers.append(request.user.email())
-      if request.user.email() in cc:
-        cc.remove(request.user.email())
+      reviewers.append(request.user.email)
+      if request.user.email in cc:
+        cc.remove(request.user.email)
     reviewers = [models.Account.get_nickname_for_email(reviewer,
                                                        default=reviewer)
                  for reviewer in reviewers]
@@ -2798,15 +2798,15 @@ def publish(request):
     reviewers = _get_emails(form, 'reviewers')
   else:
     reviewers = issue.reviewers
-    if request.user != issue.owner and request.user.email() not in reviewers:
-      reviewers.append(db.Email(request.user.email()))
+    if request.user != issue.owner and request.user.email not in reviewers:
+      reviewers.append(request.user.email)
   if form.is_valid() and not form.cleaned_data.get('message_only', False):
     cc = _get_emails(form, 'cc')
   else:
     cc = issue.cc
     # The user is in the reviewer list, remove them from CC if they're there.
-    if request.user.email() in cc:
-      cc.remove(request.user.email())
+    if request.user.email in cc:
+      cc.remove(request.user.email)
   if not form.is_valid():
     return respond(request, 'publish.html', {'form': form, 'issue': issue})
   issue.reviewers = reviewers
@@ -2943,8 +2943,8 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
   """Helper to create a Message instance and optionally send an email."""
   template, context = _get_mail_template(request, issue)
   # Decide who should receive mail
-  my_email = db.Email(request.user.email())
-  to = [db.Email(issue.owner.email())] + issue.reviewers
+  my_email = request.user.email
+  to = [issue.owner.email] + issue.reviewers
   cc = issue.cc[:]
   reply_to = to + cc
   if my_email in to and len(to) > 1:  # send_mail() wants a non-empty to list
@@ -3066,7 +3066,7 @@ def draft_message(request):
   others to view *is* XSRF-protected.
   """
   query = models.Message.objects.filter(issue=request.issue,
-                                        sender=request.user.email(),
+                                        sender=request.user.email,
                                         draft=True)
   draft_message = _first_or_none(query)
   if request.method == 'GET':
@@ -3104,7 +3104,7 @@ def _post_draft_message(request, draft):
   """
   if draft is None:
     draft = models.Message(issue=request.issue, parent=request.issue,
-                           sender=request.user.email(), draft=True)
+                           sender=request.user.email, draft=True)
   draft.text = request.POST.get('reviewmsg')
   draft.save()
   return HttpResponse(draft.text, content_type='text/plain')
@@ -3390,16 +3390,16 @@ def user_popup(request):
 
 def _user_popup(request):
   user = request.user_to_show
-  popup_html = cache.get('user_popup:' + user.email())
+  popup_html = cache.get('user_popup:' + user.email)
   if popup_html is None:
     num_issues_created = models.Issue.objects.filter(
         closed=False,
         owner=user).count()
     num_issues_reviewed = models.Issue.objects.filter(
         closed=False,
-        reviewers=user.email()).count()
+        reviewers=user.email).count()
 
-    user.nickname = models.Account.get_nickname_for_email(user.email())
+    user.nickname = models.Account.get_nickname_for_email(user.email)
     popup_html = render_to_response('user_popup.html',
                             {'user': user,
                              'num_issues_created': num_issues_created,
@@ -3407,7 +3407,7 @@ def _user_popup(request):
                              },
                              context_instance=RequestContext(request))
     # Use time expired cache because the number of issues will change over time
-    cache.add('user_popup:' + user.email(), popup_html, 60)
+    cache.add('user_popup:' + user.email, popup_html, 60)
   return popup_html
 
 @login_required
