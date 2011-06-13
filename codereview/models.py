@@ -556,17 +556,14 @@ class Account(db.Model):
   @classmethod
   def get_account_for_user(cls, user):
     """Get the Account for a user, creating a default one if needed."""
-    email = user.email
-    assert email
-    key = '<%s>' % email
-    # Since usually the account already exists, first try getting it
-    # without the transaction implied by get_or_insert().
-    account = cls.get_by_key_name(key)
-    if account is not None:
-      return account
-    nickname = cls.create_nickname_for_user(user)
-    return cls.get_or_insert(key, user=user, email=email, nickname=nickname,
-                             fresh=True)
+    assert user.email
+    try:
+      account = cls.objects.get(email__ilike=user.email)
+    except cls.DoesNotExist:
+      nickname = cls.create_nickname_for_user(user)
+      account = cls(user=user, email=email, nickname=nickname, fresh=True)
+      account.save()
+    return account
 
   @classmethod
   def create_nickname_for_user(cls, user):
