@@ -644,7 +644,7 @@ class Account(db.Model):
     """Get the list of Accounts that have this nickname."""
     assert nickname
     assert '@' not in nickname
-    return cls.objects.filter(nickname_ilike=nickname)
+    return cls.objects.filter(nickname__ilike=nickname)
 
   @classmethod
   def get_email_for_nickname(cls, nickname):
