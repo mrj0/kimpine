@@ -479,8 +479,8 @@ def respond(request, template, params=None):
     params = {}
   must_choose_nickname = False
   uploadpy_hint = False
-  if request.user is not None:
-    account = models.Account.current_user_account
+  if request.user.is_authenticated():
+    account = models.Account.objects.get(user=request.user)
     must_choose_nickname = not account.user_has_selected_nickname()
     uploadpy_hint = account.uploadpy_hint
   params['request'] = request
@@ -490,7 +490,7 @@ def respond(request, template, params=None):
   params['is_dev'] = IS_DEV
   params['media_url'] = django_settings.MEDIA_URL
   full_path = request.get_full_path().encode('utf-8')
-  if request.user is None:
+  if request.user.is_anonymous():
     params['sign_in'] = users.create_login_url(full_path)
   else:
     params['sign_out'] = users.create_logout_url(full_path)
@@ -578,7 +578,7 @@ def login_required(func):
   """Decorator that redirects to the login page if you're not logged in."""
 
   def login_wrapper(request, *args, **kwds):
-    if request.user is None:
+    if request.user.is_anonymous():
       return HttpResponseRedirect(
           users.create_login_url(request.get_full_path().encode('utf-8')))
     return func(request, *args, **kwds)
@@ -629,7 +629,7 @@ def admin_required(func):
   """Decorator that insists that you're logged in as administratior."""
 
   def admin_wrapper(request, *args, **kwds):
-    if request.user is None:
+    if request.user.is_anonymous():
       return HttpResponseRedirect(
           users.create_login_url(request.get_full_path().encode('utf-8')))
     if not request.user.is_superuser:
@@ -645,15 +645,12 @@ def issue_required(func):
   def issue_wrapper(request, issue_id, *args, **kwds):
     issue = _get_or_none(models.Issue, issue_id)
     if issue is None:
-      return HttpResponseNotFound('No issue exists with that id (%s)' %
-                                  issue_id)
+      return HttpResponseNotFound('No issue exists with that id (%s)' % issue_id)
     if issue.private:
-      if request.user is None:
-        return HttpResponseRedirect(
-            users.create_login_url(request.get_full_path().encode('utf-8')))
+      if request.user.is_anonymous():
+        return HttpResponseRedirect(users.create_login_url(request.get_full_path().encode('utf-8')))
       if not _can_view_issue(request.user, issue):
-        return HttpResponseForbidden('You do not have permission to '
-                                     'view this issue')
+        return HttpResponseForbidden('You do not have permission to view this issue')
     request.issue = issue
     return func(request, *args, **kwds)
 
@@ -828,7 +825,7 @@ def json_response(func):
 
 def index(request):
   """/ - Show a list of patches."""
-  if request.user is None:
+  if request.user.is_anonymous():
     return all(request)
   else:
     return mine(request)
@@ -1154,7 +1151,7 @@ def upload(request):
 
   This generates a text/plain response.
   """
-  if request.user is None:
+  if request.user.is_anonymous():
     if IS_DEV:
       request.user = users.User(request.POST.get('user', 'test@example.com'))
     else:
@@ -1270,7 +1267,7 @@ def upload_content(request):
   if not form.is_valid():
     return HttpResponse('ERROR: Upload content errors:\n%s' % repr(form.errors),
                         content_type='text/plain')
-  if request.user is None:
+  if request.user.is_anonymous():
     if IS_DEV:
       request.user = users.User(request.POST.get('user', 'test@example.com'))
     else:
@@ -1321,7 +1318,7 @@ def upload_patch(request):
   Used by upload.py to upload a patch when the diff is too large to upload all
   together.
   """
-  if request.user is None:
+  if request.user.is_anonymous():
     if IS_DEV:
       request.user = users.User(request.POST.get('user', 'test@example.com'))
     else:
@@ -1640,7 +1637,7 @@ def _get_patchset_info(request, patchset_id):
   if not patchset_id and patchsets:
     patchset_id = patchsets[-1].id
 
-  if request.user:
+  if request.user.is_authenticated():
     drafts = models.Comment.objects.filter(patch__patchset__issue=issue,
                                            draft=True,
                                            author=request.user)
@@ -2179,7 +2176,7 @@ def _get_context_for_user(request):
   if 'context' in request.GET and get_param is None:
     # User wants to see whole file. No further processing is needed.
     return get_param
-  if request.user:
+  if request.user.is_authenticated():
     account = models.Account.current_user_account
     default_context = account.default_context
   else:
@@ -2191,7 +2188,7 @@ def _get_context_for_user(request):
 
 def _get_column_width_for_user(request):
   """Returns the column width setting for a user."""
-  if request.user:
+  if request.user.is_authenticated():
     account = models.Account.current_user_account
     default_column_width = account.default_column_width
   else:
@@ -2619,7 +2616,7 @@ def _inline_draft(request):
   """Helper to submit an in-line draft comment."""
   # TODO(guido): turn asserts marked with XXX into errors
   # Don't use @login_required, since the JS doesn't understand redirects.
-  if not request.user:
+  if request.user.is_anonymous():
     # Don't log this, spammers have started abusing this.
     return HttpResponse('Not logged in')
   snapshot = request.POST.get('snapshot')
