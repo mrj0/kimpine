@@ -5,7 +5,7 @@
 
 {%for br in branches%}
 {%ifchanged%}<h3>Repository: {{br.repository.name}}</h3>
-{%if user%}
+{%if user.is_authenticated%}
 <p>(<a href="{%url codereview.views.branch_new br.repository.key.id%}">add branch</a>)</p>
 {%endif%}
 {%endifchanged%}

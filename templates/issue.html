@@ -149,7 +149,7 @@
             >{{message.text|wordwrap:80|urlizetrunc:80}}</pre>
           </div>
           <div class="message-actions">
-            {%if user%}
+            {%if user.is_authenticated%}
               <a href="javascript:M_replyToMessage('{{forloop.counter0}}', '{{message.date|date:"Y/m/d H:i:s"}}', '{%nickname message.sender True%}')"
                  id="message-reply-href-{{forloop.counter0}}">Reply</a>
               <textarea rows="7" cols="70" name="message" style="display:none"></textarea>
@@ -185,7 +185,7 @@
 </script>
 
 
-{%if user%}
+{%if user.is_authenticated%}
   <div style="display:none;">
     <form method="POST" action="{%url codereview.views.publish issue.key.id%}"
           id="message-reply-form">

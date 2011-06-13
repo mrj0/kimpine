@@ -8,7 +8,7 @@
 {%block mainmenu2%}
   <a href="{%url codereview.views.repos%}">Repositories and Branches</a>
   |
-  {%if user%}
+  {%if user.is_authenticated%}
     <a href="{%url codereview.views.repo_new%}">Add Repository</a>
   {%else%}
     <a class="novisit" href="{{sign_in}}">Sign in</a>

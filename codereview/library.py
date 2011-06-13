@@ -16,16 +16,13 @@
 
 # Python imports
 import cgi
-import logging
-
-# app engine imports
-from google.appengine.api import users
 
 # django imports
 import django.template
 import django.utils.safestring
 from django.core.urlresolvers import reverse
 from django.core.cache import cache
+from django.contrib.auth.models import User
 
 # local imports
 import models
@@ -99,13 +96,12 @@ def get_link_for_user(email):
 
 
 @register.filter
-def show_user(email, arg=None, autoescape=None):
+def show_user(email, current_user=None, autoescape=None):
   """Render a link to the user's dashboard, with text being the nickname."""
-  if isinstance(email, users.User):
+  if isinstance(email, User):
     email = email.email
-  if not arg:
-    user = users.get_current_user()
-    if user is not None and email == user.email:
+  if current_user:
+    if current_user.is_authenticated() and email == current_user.email:
       return 'me'
 
   ret = get_link_for_user(email)
@@ -114,20 +110,19 @@ def show_user(email, arg=None, autoescape=None):
 
 
 @register.filter
-def show_users(email_list, arg=None):
+def show_users(email_list, current_user=None):
   """Render list of links to each user's dashboard."""
   new_email_list = []
   for email in email_list:
-    if isinstance(email, users.User):
+    if isinstance(email, User):
       email = email.email
     new_email_list.append(email)
 
   links = get_links_for_users(new_email_list)
 
-  if not arg:
-    user = users.get_current_user()
-    if user is not None:
-      links[user.email] = 'me'
+  if current_user:
+    if current_user.is_authenticated():
+      links[current_user.email] = 'me'
       
   return django.utils.safestring.mark_safe(', '.join(
       links[email] for email in email_list))
@@ -184,32 +179,28 @@ def urlappend_view_settings(parser, token):
   return UrlAppendViewSettingsNode()
 
 
-def get_nickname(email, never_me=False, request=None):
+def get_nickname(email, request, never_me=False):
   """Return a nickname for an email address.
 
   If 'never_me' is True, 'me' is not returned if 'email' belongs to the
   current logged in user. If 'request' is a HttpRequest, it is used to
   cache the nickname returned by models.Account.get_nickname_for_email().
   """
-  if isinstance(email, users.User):
+  if isinstance(email, User):
     email = email.email
   if not never_me:
-    if request is not None:
-      user = request.user
-    else:
-      user = users.get_current_user()
-    if user is not None and email == user.email:
+    user = request.user
+    if user.is_authenticated() and email == user.email:
       return 'me'
 
-  if request is None:
-    return models.Account.get_nickname_for_email(email)
-  else:
-    if getattr(request, '_nicknames', None) is None:
-      request._nicknames = {}
-    if email in request._nicknames:
-      return request._nicknames[email]
-    result = models.Account.get_nickname_for_email(email)
-    request._nicknames[email] = result
+  # TODO(kle): can request ever be None?
+
+  if getattr(request, '_nicknames', None) is None:
+    request._nicknames = {}
+  if email in request._nicknames:
+    return request._nicknames[email]
+  result = models.Account.get_nickname_for_email(email)
+  request._nicknames[email] = result
   return result
 
 
@@ -245,8 +236,8 @@ class NicknameNode(django.template.Node):
       return ''
     request = context.get('request')
     if self.is_multi:
-      return ', '.join(get_nickname(e, self.never_me, request) for e in email)
-    return get_nickname(email, self.never_me, request)
+      return ', '.join(get_nickname(e, request, self.never_me) for e in email)
+    return get_nickname(email, request, self.never_me)
 
 
 @register.tag

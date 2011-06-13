@@ -363,7 +363,7 @@ class SettingsForm(forms.Form):
       raise forms.ValidationError('Choose a different nickname.')
 
     # Look for existing nicknames
-    accounts = models.Account.objects.filter(nickname__ilike=nickname)
+    accounts = models.Account.objects.filter(nickname__iexact=nickname)
     for account in accounts:
       if account == models.Account.current_user_account:
         continue
@@ -439,7 +439,7 @@ class SearchForm(forms.Form):
 
   def clean_reviewer(self):
     user = self._clean_accounts('reviewer')
-    if user:
+    if user.is_authenticated():
       return user.email
 
 
@@ -549,7 +549,7 @@ def _clean_int(value, default, min_value=None, max_value=None):
 
 
 def _can_view_issue(user, issue):
-  if user is None:
+  if user.is_anonymous():
     return not issue.private
   user_email = user.email.lower()
   return (not issue.private

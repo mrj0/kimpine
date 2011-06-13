@@ -71,10 +71,10 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'gae2django.middleware.FixRequestUserMiddleware',
+    #'gae2django.middleware.FixRequestUserMiddleware',
     # Keep in mind, that CSRF protection is DISABLED in this example!
     'rietveld_helper.middleware.DisableCSRFMiddleware',
-    'rietveld_helper.middleware.AddUserToRequestMiddleware',
+    #'rietveld_helper.middleware.AddUserToRequestMiddleware',
     'django.middleware.doc.XViewMiddleware',
 )
 

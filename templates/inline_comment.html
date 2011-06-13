@@ -52,7 +52,7 @@ class="{%if bucket.quoted%}comment-text-quoted{%else%}comment-text{%endif%}"
 </div>
 </form>
 {%else%}
-{%if user%}
+{%if user.is_authenticated%}
 <a name="comment-reply"
    href="javascript:M_replyToInlineComment('{%nickname c.author True%}', '{{c.date|date:"Y/m/d H:i:s"}}', {{forloop.counter0}}, {{lineno}}, '{{side}}')"
 ><b>Reply</b></a>

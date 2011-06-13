@@ -3,7 +3,7 @@
 
 <script language="JavaScript" type="text/javascript"><!--
 document.onkeydown = M_keyDown;
-{%if user%}
+{%if user.is_authenticated%}
 logged_in = true;
 {%else%}
 logged_in = false;

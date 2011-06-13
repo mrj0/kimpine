@@ -558,7 +558,7 @@ class Account(db.Model):
     """Get the Account for a user, creating a default one if needed."""
     assert user.email
     try:
-      account = cls.objects.get(email__ilike=user.email)
+      account = cls.objects.get(email=user.email)
     except cls.DoesNotExist:
       nickname = cls.create_nickname_for_user(user)
       account = cls(user=user, email=email, nickname=nickname, fresh=True)
@@ -644,7 +644,7 @@ class Account(db.Model):
     """Get the list of Accounts that have this nickname."""
     assert nickname
     assert '@' not in nickname
-    return cls.objects.filter(nickname__ilike=nickname)
+    return cls.objects.filter(nickname__iexact=nickname)
 
   @classmethod
   def get_email_for_nickname(cls, nickname):

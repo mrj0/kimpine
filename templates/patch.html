@@ -3,7 +3,7 @@
 
 <script language="JavaScript" type="text/javascript"><!--
 document.onkeydown = M_keyDown;
-{%if user%}
+{%if user.is_authenticated%}
 logged_in = true;
 {%else%}
 logged_in = false;
@@ -12,7 +12,7 @@ login_warned = false;
 // -->
 </script>
 
-{%if user%}
+{%if user.is_authenticated%}
 <!-- Form used by in-line comment JS; XXX filled in by JS code -->
 <form id="dainlineform" style="display: none;"
       action="{%url codereview.views.inline_draft%}" method="post">
@@ -55,7 +55,7 @@ login_warned = false;
   <div style="margin-top: .4em;" class="help">
     Use n/p to move between diff chunks;
     N/P to move between comments.
-    {%if user%}
+    {%if user.is_authenticated%}
     Double-click a line to add a draft in-line comment.
     <br><span style="color:red">Draft comments are only viewable by you;</span>
     use <a href="{%url codereview.views.publish issue.key.id%}" class="novisit">Publish+Mail Comments</a> ('m') to let others view them.
@@ -89,7 +89,7 @@ login_warned = false;
       Download patch
     </a>
   </div>
-  {%if user%}
+  {%if user.is_authenticated%}
   <div style="margin-top: 5px;">
     <a class="novisit" href="{%url codereview.views.publish issue.key.id%}">Publish+Mail
     Comments</a> ('m')

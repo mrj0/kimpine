@@ -21,7 +21,7 @@
   <link rel="alternate" type="application/atom+xml"
    	title="Recent Issues"
    	href="{%url django.contrib.syndication.views.feed url="all"%}" />
-   {%if user%}
+   {%if user.is_authenticated%}
      <link rel="alternate" type="application/atom+xml"
    	  title="Issues created by me"
    	  href="{%url django.contrib.syndication.views.feed url="mine"%}/{%nickname user True%}" />
@@ -164,7 +164,7 @@ var publish_link = "{%url codereview.views.publish issue.key.id%}";
 {%else%}
 <div style="float:left; font-weight:bold"><i>Rietveld</i> Code Review Tool</div>
 {%endif%}
-{%if user%}
+{%if user.is_authenticated%}
 <b>{{user.email}} ({%nickname user True%})</b>
 |
 {%if must_choose_nickname%}
@@ -176,7 +176,7 @@ var publish_link = "{%url codereview.views.publish issue.key.id%}";
 <a class="novisit" target="_blank" href="/_ah/admin">Admin</a>
 |
 {%endif%}
-{%if user%}
+{%if user.is_authenticated%}
 <a class="novisit" target="_blank" href="/accounts/change_password">Change password</a>
 |
 {%endif%}
@@ -192,7 +192,7 @@ var publish_link = "{%url codereview.views.publish issue.key.id%}";
 <a class="novisit" target="_blank"
    href="http://code.google.com/p/rietveld">Source code</a>
 |
-{%if user%}
+{%if user.is_authenticated%}
 <a class="novisit" href="{{sign_out}}">Sign out</a>
 {% else %}
 <a class="novisit" href="{{sign_in}}">Sign in</a>
@@ -228,7 +228,7 @@ var publish_link = "{%url codereview.views.publish issue.key.id%}";
   <img src="{{media_url}}rss.gif" alt="RSS Feeds" width="14" height="14"
        align="top" />
   <a href="{%url django.contrib.syndication.views.feed url="all"%}">Recent Issues</a>
-  {%if user%}
+  {%if user.is_authenticated%}
   |
   <a href="{%url django.contrib.syndication.views.feed url="mine"%}/{%nickname user True%}">My Issues</a>
   |
