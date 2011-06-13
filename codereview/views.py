@@ -483,6 +483,7 @@ def respond(request, template, params=None):
     account = models.Account.objects.get(user=request.user)
     must_choose_nickname = not account.user_has_selected_nickname()
     uploadpy_hint = account.uploadpy_hint
+    params['xsrf_token'] = account.get_xsrf_token()
   params['request'] = request
   params['counter'] = counter
   params['user'] = request.user
@@ -494,9 +495,6 @@ def respond(request, template, params=None):
     params['sign_in'] = users.create_login_url(full_path)
   else:
     params['sign_out'] = users.create_logout_url(full_path)
-    account = models.Account.current_user_account
-    if account is not None:
-      params['xsrf_token'] = account.get_xsrf_token()
   params['must_choose_nickname'] = must_choose_nickname
   params['uploadpy_hint'] = uploadpy_hint
   try:
