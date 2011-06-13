@@ -486,7 +486,7 @@ def respond(request, template, params=None):
   params['request'] = request
   params['counter'] = counter
   params['user'] = request.user
-  params['is_admin'] = request.user_is_admin
+  params['is_admin'] = request.user.is_superuser
   params['is_dev'] = IS_DEV
   params['media_url'] = django_settings.MEDIA_URL
   full_path = request.get_full_path().encode('utf-8')
@@ -632,7 +632,7 @@ def admin_required(func):
     if request.user is None:
       return HttpResponseRedirect(
           users.create_login_url(request.get_full_path().encode('utf-8')))
-    if not request.user_is_admin:
+    if not request.user.is_superuser:
       return HttpResponseForbidden('You must be admin in for this function')
     return func(request, *args, **kwds)
 
