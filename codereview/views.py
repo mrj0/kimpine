@@ -379,6 +379,10 @@ class SettingsForm(forms.Form):
     required=False,
     help_text='You must accept the invite for this to work.')
 
+  def __init__(self, *args, **kwargs):
+    self.request = kwargs.pop('request', None)
+    super(SettingsForm, self).__init__(*args, **kwargs)
+
   def clean_nickname(self):
     nickname = self.cleaned_data.get('nickname')
     # Check for allowed characters
@@ -395,11 +399,11 @@ class SettingsForm(forms.Form):
 
     if nickname.lower() == 'me':
       raise forms.ValidationError('Choose a different nickname.')
-
+    current_account = models.Account.get_account_for_user(self.request.user)
     # Look for existing nicknames
     accounts = models.Account.objects.filter(nickname__iexact=nickname)
     for account in accounts:
-      if account == models.Account.current_user_account:
+      if current_account == account:
         continue
       raise forms.ValidationError('This nickname is already in use.')
 
@@ -519,7 +523,7 @@ def respond(request, template, params=None):
   must_choose_nickname = False
   uploadpy_hint = False
   if request.user.is_authenticated():
-    account = models.Account.objects.get(user=request.user)
+    account = models.Account.get_account_for_user(request.user)
     must_choose_nickname = not account.user_has_selected_nickname()
     uploadpy_hint = account.uploadpy_hint
     params['xsrf_token'] = account.get_xsrf_token()
@@ -637,7 +641,7 @@ def xsrf_required(func):
       post_token = request.POST.get('xsrf_token')
       if not post_token:
         return HttpResponse('Missing XSRF token.', status=403)
-      account = models.Account.objects.get(user=request.user.id) # TODO(kle): remove id when user is foreign key
+      account = models.Account.get_account_for_user(request.user)
       if not account:
         return HttpResponse('Must be logged in for XSRF check.', status=403)
       xsrf_token = account.get_xsrf_token()
@@ -911,7 +915,7 @@ def _inner_paginate(request, issues, template, extra_template_params):
     Response for sending back to browser.
   """
   visible_issues = [i for i in issues if _can_view_issue(request.user, i)]
-  _optimize_draft_counts(visible_issues)
+  _optimize_draft_counts(request.user, visible_issues)
   _load_users_for_issues(visible_issues)
   params = {
     'issues': visible_issues,
@@ -1045,7 +1049,7 @@ def all(request):
                           extra_template_params=dict(closed=closed))
 
 
-def _optimize_draft_counts(issues):
+def _optimize_draft_counts(user, issues):
   """Force _num_drafts to zero for issues that are known to have no drafts.
 
   Args:
@@ -1057,7 +1061,7 @@ def _optimize_draft_counts(issues):
 
   If there is no current user, all draft counts are forced to 0.
   """
-  account = models.Account.current_user_account
+  account = models.Account.get_account_for_user(user)
   if account is None:
     issue_ids = None
   else:
@@ -1077,14 +1081,16 @@ def mine(request):
 @login_required
 def starred(request):
   """/starred - Show a list of issues starred by the current user."""
-  stars = models.Account.current_user_account.stars
+
+  account = models.Account.get_account_for_user(request.user)
+  stars = account.stars
   if not stars:
     issues = []
   else:
     issues = [issue for issue in models.Issue.objects.filter(id__in=stars)
                     if _can_view_issue(request.user, issue)]
     _load_users_for_issues(issues)
-    _optimize_draft_counts(issues)
+    _optimize_draft_counts(request.user, issues)
   return respond(request, 'starred.html', {'issues': issues})
 
 def _load_users_for_issues(issues):
@@ -1133,7 +1139,7 @@ def _show_user(request):
 
   all_issues = my_issues + review_issues + closed_issues + cc_issues
   _load_users_for_issues(all_issues)
-  _optimize_draft_counts(all_issues)
+  _optimize_draft_counts(request.user, all_issues)
   return respond(request, 'user.html',
                  {'email': user.email,
                   'my_issues': my_issues,
@@ -1171,8 +1177,9 @@ def use_uploadpy(request):
   """Show an intermediate page about upload.py."""
   if request.method == 'POST':
     if 'disable_msg' in request.POST:
-      models.Account.current_user_account.uploadpy_hint = False
-      models.Account.current_user_account.save()
+      account = models.Account.get_account_for_user(request.user)
+      account.uploadpy_hint = False
+      account.save()
     if 'download' in request.POST:
       url = reverse(customized_upload_py)
     else:
@@ -2216,7 +2223,7 @@ def _get_context_for_user(request):
     # User wants to see whole file. No further processing is needed.
     return get_param
   if request.user.is_authenticated():
-    account = models.Account.objects.get(user=request.user)
+    account = models.Account.get_account_for_user(request.user)
     default_context = account.default_context
   else:
     default_context = engine.DEFAULT_CONTEXT
@@ -2228,7 +2235,7 @@ def _get_context_for_user(request):
 def _get_column_width_for_user(request):
   """Returns the column width setting for a user."""
   if request.user.is_authenticated():
-    account = models.Account.objects.get(user=request.user)
+    account = models.Account.get_account_for_user(request.user)
     default_column_width = account.default_column_width
   else:
     default_column_width = engine.DEFAULT_COLUMN_WIDTH
@@ -2478,7 +2485,7 @@ def diff2(request, ps_left_id, ps_right_id, patch_filename):
   patchsets = list(request.issue.patchset_set.order('created'))
 
   if data["patch_right"]:
-    _add_next_prev2(data["ps_left"], data["ps_right"], data["patch_right"])
+    _add_next_prev2(request.user, data["ps_left"], data["ps_right"], data["patch_right"])
   return respond(request, 'diff2.html',
                  {'issue': request.issue,
                   'ps_left': data["ps_left"],
@@ -2526,6 +2533,7 @@ def _get_comment_counts(account, patchset):
   """
   # A key-only query won't work because we need to fetch the patch key
   # in the for loop further down.
+  # TODO(kle): wtf, get all comments? needs a massive refactor
   comment_query = models.Comment.objects.all()
   comment_query.ancestor(patchset)
 
@@ -2547,9 +2555,8 @@ def _add_next_prev(request, patchset, patch):
   patch.prev = patch.next = None
   patches = models.Patch.objects.filter(patchset=patchset).order_by('filename')
   patchset.patches = patches  # Required to render the jump to select.
-
-  comments_by_patch, drafts_by_patch = _get_comment_counts(
-      models.Account.objects.get(user=request.user), patchset)
+  account = models.Account.get_account_for_user(request.user)
+  comments_by_patch, drafts_by_patch = _get_comment_counts(account, patchset)
 
   last_patch = None
   next_patch = None
@@ -2584,14 +2591,14 @@ def _add_next_prev(request, patchset, patch):
   patch.next_with_comment = next_patch_with_comment
 
 
-def _add_next_prev2(ps_left, ps_right, patch_right):
+def _add_next_prev2(user, ps_left, ps_right, patch_right):
   """Helper to add .next and .prev attributes to a patch object."""
   patch_right.prev = patch_right.next = None
   patches = models.Patch.objects.filter(patchset=ps_right).order_by('filename')
   ps_right.patches = patches  # Required to render the jump to select.
 
-  n_comments, n_drafts = _get_comment_counts(
-    models.Account.current_user_account, ps_right)
+  account = models.Account.get_account_for_user(request.user)
+  n_comments, n_drafts = _get_comment_counts(account, ps_right)
 
   last_patch = None
   next_patch = None
@@ -2658,6 +2665,7 @@ def _inline_draft(request):
   if request.user.is_anonymous():
     # Don't log this, spammers have started abusing this.
     return HttpResponse('Not logged in')
+  account = models.Account.get_account_for_user(request.user)
   snapshot = request.POST.get('snapshot')
   assert snapshot in ('old', 'new'), repr(snapshot)
   left = (snapshot == 'old')
@@ -2693,7 +2701,7 @@ def _inline_draft(request):
       comment.delete()  # Deletion
       comment = None
       # Re-query the comment count.
-      models.Account.objects.get(user=request.user.id).update_drafts(issue)
+      account.update_drafts(issue)
   else:
     if comment is None:
       comment = models.Comment(key_name=message_id, parent=patch, author=request.user) # TODO(kle): key_name wtf
@@ -2705,7 +2713,7 @@ def _inline_draft(request):
     comment.message_id = message_id
     comment.save()
     # The actual count doesn't matter, just that there's at least one.
-    models.Account.objects.get(user=request.user.id).update_drafts(issue, 1)
+    account.update_drafts(issue, 1)
 
   query = models.Comment.objects.filter(patch=patch,
                                         lineno=lineno,
@@ -2870,7 +2878,7 @@ def publish(request):
     db.put(obj)
 
   # There are now no comments here (modulo race conditions)
-  models.Account.current_user_account.update_drafts(issue, 0)
+  models.Account.get_account_for_user(request.user).update_drafts(issue, 0)
   if form.cleaned_data.get('no_redirect', False):
     return HttpResponse('OK', content_type='text/plain')
   return HttpResponseRedirect(reverse(show, args=[issue.id]))
@@ -3065,7 +3073,7 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
 @issue_required
 def star(request):
   """Add a star to an Issue."""
-  account = models.Account.objects.get(user=request.user.id) #TODO(kle): remove .id when user is a foreign key
+  account = models.Account.get_account_for_user(request.user)
   account.user_has_selected_nickname()  # This will preserve account.fresh.
   if account.stars is None:
     account.stars = []
@@ -3082,7 +3090,7 @@ def star(request):
 @xsrf_required
 def unstar(request):
   """Remove the star from an Issue."""
-  account = models.Account.objects.get(user=request.user.id) #TODO(kle): remove .id when user is a foreign key
+  account = models.Account.get_account_for_user(request.user)
   account.user_has_selected_nickname()  # This will preserve account.fresh.
   if account.stars is None:
     account.stars = []
@@ -3380,7 +3388,7 @@ def branch_delete(request, branch_id):
 @login_required
 @xsrf_required
 def settings(request):
-  account = models.Account.current_user_account
+  account = models.Account.get_account_for_user(request.user)
   if request.method != 'POST':
     nickname = account.nickname
     default_context = account.default_context
@@ -3409,7 +3417,7 @@ def settings(request):
 @login_required
 @xsrf_required
 def account_delete(request):
-  account = models.Account.current_user_account
+  account = models.Account.get_account_for_user(request.user)
   account.delete()
   return HttpResponseRedirect(_create_logout_url(reverse(index)))
 
@@ -3459,8 +3467,8 @@ def xsrf_token(request):
   if not request.META.has_key('HTTP_X_REQUESTING_XSRF_TOKEN'):
     return HttpResponse('Please include a header named X-Requesting-XSRF-Token '
                         '(its content doesn\'t matter).', status=400)
-  return HttpResponse(models.Account.current_user_account.get_xsrf_token(),
-                      mimetype='text/plain')
+  account = models.Account.get_account_for_user(request.user)
+  return HttpResponse(account.get_xsrf_token(), mimetype='text/plain')
 
 
 def customized_upload_py(request):

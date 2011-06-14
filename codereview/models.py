@@ -549,7 +549,8 @@ class Account(db.Model):
   @classmethod
   def get_account_for_user(cls, user):
     """Get the Account for a user, creating a default one if needed."""
-    assert user.email
+    if user.is_anonymous():
+      return None
     try:
       account = cls.objects.get(email=user.email)
     except cls.DoesNotExist:
