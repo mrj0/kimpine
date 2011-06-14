@@ -531,9 +531,9 @@ def respond(request, template, params=None):
   params['media_url'] = django_settings.MEDIA_URL
   full_path = request.get_full_path().encode('utf-8')
   if request.user.is_anonymous():
-    params['sign_in'] = users.create_login_url(full_path)
+    params['sign_in'] = _create_login_url(full_path)
   else:
-    params['sign_out'] = users.create_logout_url(full_path)
+    params['sign_out'] = _create_logout_url(full_path)
   params['must_choose_nickname'] = must_choose_nickname
   params['uploadpy_hint'] = uploadpy_hint
   try:
@@ -617,7 +617,7 @@ def login_required(func):
   def login_wrapper(request, *args, **kwds):
     if request.user.is_anonymous():
       return HttpResponseRedirect(
-          users.create_login_url(request.get_full_path().encode('utf-8')))
+          _create_login_url(request.get_full_path().encode('utf-8')))
     return func(request, *args, **kwds)
 
   return login_wrapper
@@ -668,7 +668,7 @@ def admin_required(func):
   def admin_wrapper(request, *args, **kwds):
     if request.user.is_anonymous():
       return HttpResponseRedirect(
-          users.create_login_url(request.get_full_path().encode('utf-8')))
+          _create_login_url(request.get_full_path().encode('utf-8')))
     if not request.user.is_superuser:
       return HttpResponseForbidden('You must be admin in for this function')
     return func(request, *args, **kwds)
@@ -685,7 +685,7 @@ def issue_required(func):
       return HttpResponseNotFound('No issue exists with that id (%s)' % issue_id)
     if issue.private:
       if request.user.is_anonymous():
-        return HttpResponseRedirect(users.create_login_url(request.get_full_path().encode('utf-8')))
+        return HttpResponseRedirect(_create_login_url(request.get_full_path().encode('utf-8')))
       if not _can_view_issue(request.user, issue):
         return HttpResponseForbidden('You do not have permission to view this issue')
     request.issue = issue
@@ -3409,7 +3409,7 @@ def settings(request):
 def account_delete(request):
   account = models.Account.current_user_account
   account.delete()
-  return HttpResponseRedirect(users.create_logout_url(reverse(index)))
+  return HttpResponseRedirect(_create_logout_url(reverse(index)))
 
 
 @user_key_required
@@ -3484,3 +3484,10 @@ def customized_upload_py(request):
                             'DEFAULT_REVIEW_SERVER = "%s"' % review_server)
 
   return HttpResponse(source, content_type='text/x-python')
+
+def _create_login_url(redirect):
+    return django_settings.LOGIN_URL+'?next='+redirect
+
+
+def _create_logout_url(redirect):
+    return django_settings.LOGOUT_URL+'?next='+redirect
