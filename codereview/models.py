@@ -72,14 +72,6 @@ class Issue(db.Model):
     """Return true if the given user has permission to edit this issue."""
     return user == self.owner
 
-  @property
-  def edit_allowed(self):
-    """Whether the current user can edit this issue."""
-    account = Account.current_user_account
-    if account is None:
-      return False
-    return self.user_can_edit(account.user)
-
   def update_comment_count(self, n):
     """Increment the n_comments property by n.
 

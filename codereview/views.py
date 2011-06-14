@@ -92,15 +92,18 @@ class AccountInput(forms.TextInput):
       'autocomplete/jquery.autocomplete.js'
     )
 
+  def __init__(self, *args, **kwargs):
+    self.request = kwargs.pop('request', None)
+    super(AccountInput, self).__init__(*args, **kwargs)
+
   def render(self, name, value, attrs=None):
     output = super(AccountInput, self).render(name, value, attrs)
-    if models.Account.current_user_account is not None:
+    if self.request and self.request.user.is_authenticated():
       # TODO(anatoli): move this into .js media for this form
       data = {'name': name, 'url': reverse(account),
               'multiple': 'true'}
       if self.attrs.get('multiple', True) == False:
         data['multiple'] = 'false'
-      output += mark_safe(AccountInput().media)
       output += mark_safe(u'''<script type="text/javascript">
                           jQuery("#id_%(name)s").autocomplete("%(url)s", {
                           max: 10,
@@ -119,7 +122,6 @@ class AccountInput(forms.TextInput):
 
 
 class IssueBaseForm(forms.Form):
-
   subject = forms.CharField(max_length=100,
                             widget=forms.TextInput(attrs={'size': 60}))
   description = forms.CharField(required=False,
@@ -137,6 +139,13 @@ class IssueBaseForm(forms.Form):
                        label = 'CC',
                        widget=AccountInput(attrs={'size': 60}))
   private = forms.BooleanField(required=False, initial=False)
+
+  def __init__(self, *args, **kwargs):
+    self.request = kwargs.pop('request', None)
+    super(IssueBaseForm, self).__init__(*args, **kwargs)
+    for field in self.fields.itervalues():
+      if type(field.widget) == AccountInput:
+        field.widget.request = self.request
 
   def set_branch_choices(self, base=None):
     branches = models.Branch.objects.order_by('repo','category','name')
@@ -191,6 +200,12 @@ class AddForm(forms.Form):
                               widget=AccountInput(attrs={'size': 60}))
   send_mail = forms.BooleanField(required=False, initial=True)
 
+  def __init__(self, *args, **kwargs):
+    self.request = kwargs.pop('request', None)
+    super(AddForm, self).__init__(*args, **kwargs)
+    for field in self.fields.itervalues():
+      if type(field.widget) == AccountInput:
+        field.widget.request = self.request
 
 class UploadForm(forms.Form):
 
@@ -267,6 +282,13 @@ class EditLocalBaseForm(forms.Form):
   private = forms.BooleanField(required=False, initial=False)
   closed = forms.BooleanField(required=False)
 
+  def __init__(self, *args, **kwargs):
+    self.request = kwargs.pop('request', None)
+    super(EditLocalBaseForm, self).__init__(*args, **kwargs)
+    for field in self.fields.itervalues():
+      if type(field.widget) == AccountInput:
+        field.widget.request = self.request
+
   def get_base(self):
     return None
 
@@ -305,6 +327,12 @@ class PublishForm(forms.Form):
   no_redirect = forms.BooleanField(required=False,
                                    widget=forms.HiddenInput())
 
+  def __init__(self, *args, **kwargs):
+    self.request = kwargs.pop('request', None)
+    super(PublishForm, self).__init__(*args, **kwargs)
+    for field in self.fields.itervalues():
+      if type(field.widget) == AccountInput:
+        field.widget.request = self.request
 
 class MiniPublishForm(forms.Form):
 
@@ -324,6 +352,12 @@ class MiniPublishForm(forms.Form):
   no_redirect = forms.BooleanField(required=False,
                                    widget=forms.HiddenInput())
 
+  def __init__(self, *args, **kwargs):
+    self.request = kwargs.pop('request', None)
+    super(MiniPublishForm, self).__init__(*args, **kwargs)
+    for field in self.fields.itervalues():
+      if type(field.widget) == AccountInput:
+        field.widget.request = self.request
 
 FORM_CONTEXT_VALUES = [(x, '%d lines' % x) for x in models.CONTEXT_CHOICES]
 FORM_CONTEXT_VALUES.append(('', 'Whole file'))
@@ -398,14 +432,19 @@ class SearchForm(forms.Form):
   closed = forms.NullBooleanField(required=False)
   owner = forms.CharField(required=False,
                           max_length=1000,
-                          widget=AccountInput(attrs={'size': 60,
-                                                     'multiple': False}))
+                          widget=AccountInput(attrs={'size': 60, 'multiple': False}))
   reviewer = forms.CharField(required=False,
                               max_length=1000,
-                              widget=AccountInput(attrs={'size': 60,
-                                                         'multiple': False}))
+                              widget=AccountInput(attrs={'size': 60, 'multiple': False}))
   base = forms.CharField(required=False, max_length=550)
   private = forms.NullBooleanField(required=False)
+
+  def __init__(self, *args, **kwargs):
+    self.request = kwargs.pop('request', None)
+    super(SearchForm, self).__init__(*args, **kwargs)
+    for field in self.fields.itervalues():
+      if type(field.widget) == AccountInput:
+        field.widget.request = self.request
 
   def _clean_accounts(self, key):
     """Cleans up autocomplete field.
@@ -514,10 +553,10 @@ def _first_or_none(query_set):
   return query_set[0] if query_set else None
 
 def _get_or_none(model, id):
-    try:
-        return model.objects.get(id)
-    except model.DoesNotExist:
-        return None
+  try:
+    return model.objects.get(id=id)
+  except model.DoesNotExist:
+    return None
 
 def _random_bytes(n):
   """Helper returning a string of random bytes of given length."""
@@ -663,7 +702,7 @@ def user_key_required(func):
     if '@' in user_key:
       request.user_to_show = users.User(user_key)
     else:
-      account = models.Account.get_account_for_nickname(user_key)
+      account = models.Account.get_account_for_nickname(user_key)[0]
       if not account:
         logging.info("account not found for nickname %s" % user_key)
         return HttpResponseNotFound('No user found with that key (%s)' %
@@ -1113,11 +1152,11 @@ def new(request):
   GET shows a blank form, POST processes it.
   """
   if request.method != 'POST':
-    form = NewForm()
+    form = NewForm(request=request)
     form.set_branch_choices()
     return respond(request, 'new.html', {'form': form})
 
-  form = NewForm(request.POST, request.FILES)
+  form = NewForm(request.POST, request.FILES, request=request)
   form.set_branch_choices()
   issue = _make_new(request, form)
   if issue is None:
@@ -1464,7 +1503,7 @@ def _get_data_url(form):
 def add(request):
   """/<issue>/add - Add a new PatchSet to an existing Issue."""
   issue = request.issue
-  form = AddForm(request.POST, request.FILES)
+  form = AddForm(request.POST, request.FILES, request=request)
   if not _add_patchset_from_form(request, issue, form):
     return show(request, issue.id, form)
   return HttpResponseRedirect(reverse(show, args=[issue.id]))
@@ -1710,7 +1749,7 @@ def show(request, form=None):
   if response:
     return response
   if not form:
-    form = AddForm(initial={'reviewers': ', '.join(issue.reviewers)})
+    form = AddForm(initial={'reviewers': ', '.join(issue.reviewers)}, request=request)
   last_patchset = first_patch = None
   if patchsets:
     last_patchset = patchsets[-1]
@@ -1802,12 +1841,13 @@ def edit(request):
                              'cc': ', '.join(ccs),
                              'closed': issue.closed,
                              'private': issue.private,
-                             })
+                             },
+                    request=request)
     if not issue.local_base:
       form.set_branch_choices(base)
     return respond(request, 'edit.html', {'issue': issue, 'form': form})
 
-  form = form_cls(request.POST)
+  form = form_cls(request.POST, request=request)
   if not issue.local_base:
     form.set_branch_choices()
 
@@ -2051,7 +2091,7 @@ def patch_helper(request, nav_type='patch'):
   Returns:
     Whatever respond() returns.
   """
-  _add_next_prev(request.patchset, request.patch)
+  _add_next_prev(request, request.patchset, request.patch)
   request.patch.nav_type = nav_type
   parsed_lines = patching.ParsePatchToLines(request.patch.lines)
   if parsed_lines is None:
@@ -2175,7 +2215,7 @@ def _get_context_for_user(request):
     # User wants to see whole file. No further processing is needed.
     return get_param
   if request.user.is_authenticated():
-    account = models.Account.current_user_account
+    account = models.Account.objects.get(user=request.user)
     default_context = account.default_context
   else:
     default_context = engine.DEFAULT_CONTEXT
@@ -2187,7 +2227,7 @@ def _get_context_for_user(request):
 def _get_column_width_for_user(request):
   """Returns the column width setting for a user."""
   if request.user.is_authenticated():
-    account = models.Account.current_user_account
+    account = models.Account.objects.get(user=request.user)
     default_column_width = account.default_column_width
   else:
     default_column_width = engine.DEFAULT_COLUMN_WIDTH
@@ -2220,7 +2260,7 @@ def diff(request):
     except engine.FetchError, err:
       return HttpResponseNotFound(str(err))
 
-  _add_next_prev(patchset, patch)
+  _add_next_prev(request, patchset, patch)
   return respond(request, 'diff.html',
                  {'issue': request.issue,
                   'patchset': patchset,
@@ -2501,14 +2541,14 @@ def _get_comment_counts(account, patchset):
   return comments_by_patch, drafts_by_patch
 
 
-def _add_next_prev(patchset, patch):
+def _add_next_prev(request, patchset, patch):
   """Helper to add .next and .prev attributes to a patch object."""
   patch.prev = patch.next = None
   patches = models.Patch.objects.filter(patchset=patchset).order_by('filename')
   patchset.patches = patches  # Required to render the jump to select.
 
   comments_by_patch, drafts_by_patch = _get_comment_counts(
-     models.Account.current_user_account, patchset)
+      models.Account.objects.get(user=request.user), patchset)
 
   last_patch = None
   next_patch = None
@@ -2777,14 +2817,15 @@ def publish(request):
                                'cc': ', '.join(ccs),
                                'send_mail': True,
                                'message': msg,
-                               })
+                               },
+                      request=request)
     return respond(request, 'publish.html', {'form': form,
                                              'issue': issue,
                                              'preview': preview,
                                              'draft_message': draft_message,
                                              })
 
-  form = form_class(request.POST)
+  form = form_class(request.POST, request=request)
   if not form.is_valid():
     return respond(request, 'publish.html', {'form': form, 'issue': issue})
   if request.user == issue.owner:
@@ -3123,11 +3164,11 @@ def _delete_draft_message(request, draft):
 def search(request):
   """/search - Search for issues or patchset."""
   if request.method == 'GET':
-    form = SearchForm(request.GET)
+    form = SearchForm(request.GET, request=request)
     if not form.is_valid() or not request.GET:
       return respond(request, 'search.html', {'form': form})
   else:
-    form = SearchForm(request.POST)
+    form = SearchForm(request.POST, request=request)
     if not form.is_valid():
       return HttpResponseBadRequest('Invalid arguments',
           content_type='text/plain')

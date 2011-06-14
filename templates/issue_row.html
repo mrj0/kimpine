@@ -2,7 +2,7 @@
   <td class="first" width="14"><img src="{{media_url}}closedtriangle.gif" 
     style="visibility: hidden;" width="12" height="9" /></td>
   <td width="34" align="left" style="white-space: nowrap">{%include "issue_star.html"%}
-{%if issue.edit_allowed and not issue.closed%}
+{%if issue|can_edit:user and not issue.closed%}
 <span class="issue-close" id="issue-close-{{issue.key.id}}">
     <a href="javascript:M_closeIssue({{issue.key.id}})">
       <img src="{{media_url}}close.gif" title="Close This Issue" width="15"

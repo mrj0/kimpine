@@ -108,6 +108,10 @@ def show_user(email, current_user=None, autoescape=None):
 
   return django.utils.safestring.mark_safe(ret)
 
+@register.filter
+def can_edit(issue, user):
+  """Returns True if the user can edit the issue, False otherwise"""
+  return issue.user_can_edit(user)
 
 @register.filter
 def show_users(email_list, current_user=None):
