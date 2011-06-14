@@ -316,7 +316,7 @@ class Patch(db.Model):
     The value is expensive to compute, so it is cached.
     """
     if self._num_drafts is None:
-      account = Account.current_user_account
+      account = Account.objects.get(patchset_issue_user=user.id) #TODO(kle): when this is a Foreign key, refactor
       if account is None:
         self._num_drafts = 0
       else:
@@ -536,9 +536,6 @@ class Account(db.Model):
   notify_by_email = db.BooleanProperty(default=True)
   notify_by_chat = db.BooleanProperty(default=False)
 
-  # Current user's Account.  Updated by middleware.AddUserToRequestMiddleware.
-  current_user_account = None
-
   lower_email = db.StringProperty()
   lower_nickname = db.StringProperty()
   xsrf_secret = db.BlobProperty()
@@ -582,13 +579,16 @@ class Account(db.Model):
   def get_account_for_email(cls, email):
     """Get the Account for an email address, or return None."""
     assert email
-    key = '<%s>' % email
-    return cls.get_by_key_name(key)
+    try:
+      account = cls.objects.get(email=email) #TODO(kle): refactor when email is removed from accounts
+    except cls.DoesNotExist:
+      account = None
+    return account
 
   @classmethod
   def get_accounts_for_emails(cls, emails):
     """Get the Accounts for each of a list of email addresses."""
-    return cls.get_by_key_name(['<%s>' % email for email in emails])
+    return cls.objects.filter(email__in=emails)
 
   @classmethod
   def get_by_key_name(cls, key, **kwds):
@@ -597,23 +597,6 @@ class Account(db.Model):
       if key == cls.current_user_account.key().name():
         return cls.current_user_account
     return super(Account, cls).get_by_key_name(key, **kwds)
-
-  @classmethod
-  def get_multiple_accounts_by_email(cls, emails):
-    """Get multiple accounts.  Returns a dict by email."""
-    results = {}
-    keys = []
-    for email in emails:
-      if cls.current_user_account and email == cls.current_user_account.email:
-        results[email] = cls.current_user_account
-      else:
-        keys.append('<%s>' % email)
-    if keys:
-      accounts = cls.get_by_key_name(keys)
-      for account in accounts:
-        if account is not None:
-          results[account.email] = account
-    return results
 
   @classmethod
   def get_nickname_for_email(cls, email, default=None):

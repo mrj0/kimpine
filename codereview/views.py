@@ -1420,6 +1420,7 @@ def _make_new(request, form):
                          description=form.cleaned_data['description'],
                          base=base,
                          reviewers=reviewers,
+                         owner=request.user,
                          cc=cc,
                          private=form.cleaned_data.get('private', False),
                          n_comments=0)
@@ -3263,7 +3264,7 @@ def repo_new(request):
   if not branch_url.endswith('/'):
     branch_url += '/'
   branch_url += 'trunk/'
-  branch = models.Branch(repo=repo, repo_name=repo.name,
+  branch = models.Branch(repo=repo, repo_name=repo.name, request.user,
                          category='*trunk*', name='Trunk',
                          url=branch_url)
   branch.save()
@@ -3285,7 +3286,7 @@ def repo_init(request):
   """/repo_init - Initialze the list of known Subversion repositories."""
   python = _first_or_none(models.Repository.objects.filter(name='Python'))
   if python is None:
-    python = models.Repository(name='Python', url=SVN_ROOT)
+    python = models.Repository(name='Python', url=SVN_ROOT, owner=request.user)
     python.save()
     pybranches = []
   else:
@@ -3296,7 +3297,7 @@ def repo_init(request):
       if (br.category, br.name, br.url) == (category, name, url):
         break
     else:
-      br = models.Branch(repo=python, repo_name='Python',
+      br = models.Branch(repo=python, repo_name='Python', owner=request.user,
                          category=category, name=name, url=url)
       br.save()
   return HttpResponseRedirect(reverse(repos))
