@@ -125,8 +125,8 @@
       Reviewers: {%nicknames issue.reviewers%}<br/>
       Base URL: {{issue.base}}<br/>
       Comments: {{issue.num_comments}}
-      {%if issue.num_drafts%} <span style="color: red;">+
-	{{issue.num_drafts}} drafts</span>{%endif%}
+      {%if issue|num_issue_drafts:user%} <span style="color: red;">+
+	{{issue|num_issue_drafts:user}} drafts</span>{%endif%}
     </div>
   {%endif%}
 {%endblock%}

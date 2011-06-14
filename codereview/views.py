@@ -2692,10 +2692,11 @@ def _inline_draft(request):
       comment.delete()  # Deletion
       comment = None
       # Re-query the comment count.
-      models.Account.current_user_account.update_drafts(issue)
+      models.Account.objects.get(user=request.user.id).update_drafts(issue)
   else:
     if comment is None:
-      comment = models.Comment(key_name=message_id, parent=patch)
+      comment = models.Comment(key_name=message_id, parent=patch, author=request.user) # TODO(kle): key_name wtf
+                                                                                          # also user.id
     comment.patch = patch
     comment.lineno = lineno
     comment.left = left
@@ -2703,7 +2704,7 @@ def _inline_draft(request):
     comment.message_id = message_id
     comment.save()
     # The actual count doesn't matter, just that there's at least one.
-    models.Account.current_user_account.update_drafts(issue, 1)
+    models.Account.objects.get(user=request.user.id).update_drafts(issue, 1)
 
   query = models.Comment.objects.filter(patch=patch,
                                         lineno=lineno,

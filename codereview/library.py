@@ -119,6 +119,10 @@ def is_starred(issue, user):
   return issue.is_starred(user)
 
 @register.filter
+def num_issue_drafts(issue, user):
+  return issue.num_drafts(user)
+
+@register.filter
 def show_users(email_list, current_user=None):
   """Render list of links to each user's dashboard."""
   new_email_list = []
