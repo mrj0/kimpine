@@ -3,8 +3,8 @@
     style="visibility: hidden;" width="12" height="9" /></td>
   <td width="34" align="left" style="white-space: nowrap">{%include "issue_star.html"%}
 {%if issue|can_edit:user and not issue.closed%}
-<span class="issue-close" id="issue-close-{{issue.key.id}}">
-    <a href="javascript:M_closeIssue({{issue.key.id}})">
+<span class="issue-close" id="issue-close-{{issue.id}}">
+    <a href="javascript:M_closeIssue({{issue.id}})">
       <img src="{{media_url}}close.gif" title="Close This Issue" width="15"
       height="15" border="0"></a>
 </span>
@@ -15,8 +15,8 @@
   </td>
   <td>
     <div class="subject">
-      <a class="noul" href="{%url codereview.views.show issue.key.id%}"
-      id="issue-title-{{issue.key.id}}">{{issue.subject}}</a>
+      <a class="noul" href="{%url codereview.views.show issue.id%}"
+      id="issue-title-{{issue.id}}">{{issue.subject}}</a>
       {%if issue.closed and not closed_issues %} (Closed) {%endif%}
     </div>
   </td>

@@ -637,7 +637,7 @@ def xsrf_required(func):
       post_token = request.POST.get('xsrf_token')
       if not post_token:
         return HttpResponse('Missing XSRF token.', status=403)
-      account = models.Account.current_user_account
+      account = models.Account.objects.get(user=request.user.id) # TODO(kle): remove id when user is foreign key
       if not account:
         return HttpResponse('Must be logged in for XSRF check.', status=403)
       xsrf_token = account.get_xsrf_token()
@@ -3063,7 +3063,7 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
 @issue_required
 def star(request):
   """Add a star to an Issue."""
-  account = models.Account.current_user_account
+  account = models.Account.objects.get(user=request.user.id) #TODO(kle): remove .id when user is a foreign key
   account.user_has_selected_nickname()  # This will preserve account.fresh.
   if account.stars is None:
     account.stars = []
@@ -3080,7 +3080,7 @@ def star(request):
 @xsrf_required
 def unstar(request):
   """Remove the star from an Issue."""
-  account = models.Account.current_user_account
+  account = models.Account.objects.get(user=request.user.id) #TODO(kle): remove .id when user is a foreign key
   account.user_has_selected_nickname()  # This will preserve account.fresh.
   if account.stars is None:
     account.stars = []

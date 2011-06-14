@@ -59,12 +59,14 @@ class Issue(db.Model):
 
   _is_starred = None
 
-  @property
-  def is_starred(self):
+  def is_starred(self, user):
     """Whether the current user has this issue starred."""
     if self._is_starred is not None:
       return self._is_starred
-    account = Account.current_user_account
+    try:
+      account = Account.objects.get(user=user.id) #TODO(kle): when this is a Foreign key, refactor
+    except Account.DoesNotExist:
+      account = None
     self._is_starred = account is not None and self.id in account.stars
     return self._is_starred
 

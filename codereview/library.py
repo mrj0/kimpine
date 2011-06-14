@@ -114,6 +114,11 @@ def can_edit(issue, user):
   return issue.user_can_edit(user)
 
 @register.filter
+def is_starred(issue, user):
+  """Returns True if the user can edit the issue, False otherwise"""
+  return issue.is_starred(user)
+
+@register.filter
 def show_users(email_list, current_user=None):
   """Render list of links to each user's dashboard."""
   new_email_list = []
