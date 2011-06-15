@@ -2911,7 +2911,7 @@ def _get_draft_comments(request, issue, preview=False):
                                                 author=request.user,
                                                 draft=True)
     if ps_comments:
-      patches = dict((p.key(), p) for p in patchset.patch_set)
+      patches = dict((p.id, p) for p in patchset.patch_set)
       for p in patches.itervalues():
         p.patchset = patchset
       for c in ps_comments:
@@ -2919,9 +2919,9 @@ def _get_draft_comments(request, issue, preview=False):
         # Get the patch key value without loading the patch entity.
         # NOTE: Unlike the old version of this code, this is the
         # recommended and documented way to do this!
-        pkey = models.Comment.patch.get_value_for_datastore(c)
+        patch_id = c.patch.id
         if pkey in patches:
-          patch = patches[pkey]
+          patch = patches[patch_id]
           c.patch = patch
       if not preview:
         tbd.append(ps_comments)
