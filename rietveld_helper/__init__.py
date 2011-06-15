@@ -38,5 +38,5 @@ def on_post_save_user(sender, **kwds):
         user.email = CallableString(user.email)
     from codereview import models
     account = models.Account.get_account_for_user(user)
-    account.put()
+    account.save()
 post_save.connect(on_post_save_user)

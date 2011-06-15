@@ -1688,11 +1688,11 @@ def _get_patchset_info(request, patchset_id):
                                            draft=False)
   issue.draft_count = len(drafts)
   for c in drafts:
-    c.ps_key = c.patch.patchset.key()
+    c.ps_key = c.patch.patchset.id
   patchset_id_mapping = {}  # Maps from patchset id to its ordering number.
   for patchset in patchsets:
     patchset_id_mapping[patchset.id] = len(patchset_id_mapping) + 1
-    patchset.n_drafts = sum(c.ps_key == patchset.key() for c in drafts)
+    patchset.n_drafts = sum(c.ps_key == patchset.id for c in drafts)
     patchset.patches = None
     patchset.parsed_patches = None
     if patchset_id == patchset.id:
@@ -1702,9 +1702,9 @@ def _get_patchset_info(request, patchset_id):
         response = HttpResponse('Invalid parameter', status=404)
         break
       for patch in patchset.patches:
-        pkey = patch.key()
-        patch._num_comments = sum(c.parent_key() == pkey for c in comments)
-        patch._num_drafts = sum(c.parent_key() == pkey for c in drafts)
+        pkey = patch.id
+        patch._num_comments = sum(c.patch.id == pkey for c in comments)
+        patch._num_drafts = sum(c.patch.id == pkey for c in drafts)
         if not patch.delta_calculated:
           if attempt > 2:
             # Too many patchsets or files and we're not able to generate the
@@ -1800,16 +1800,15 @@ def account(request):
   def searchAccounts(property, added, response):
     query = request.GET.get('q').lower()
     limit = _clean_int(request.GET.get('limit'), 10, 10, 100)
-    filter_args = { "lower_%s__gte" % property: query,
-                    "lower_%s__lt" % property: query + u"\ufffd" }
+    filter_args = { "%s__istartswith" % property: query }
 
-    accounts = models.Account.filter(**filter_args).order_by("lower_%s" % property)
+    accounts = models.Account.objects.filter(**filter_args).order_by(property)
     for account in accounts:
-      if account.key() in added:
+      if account.id in added:
         continue
       if len(added) >= limit:
         break
-      added.add(account.key())
+      added.add(account.id)
       response += '%s (%s)\n' % (account.email, account.nickname)
     return added, response
 
@@ -3232,7 +3231,7 @@ def repos(request):
   bad_branches.delete()
   repo_map = {}
   for repo in models.Repository.objects.all():
-    repo_map[str(repo.key())] = repo
+    repo_map[str(repo.id)] = repo
   branches = []
   for branch in models.Branch.objects.order_by('repo','category','name'):
     branch.repository = repo_map[str(branch._repo)]
@@ -3306,8 +3305,8 @@ def branch_new(request, repo_id):
   """/branch_new/<repo> - Add a new Branch to a Repository record."""
   repo = _get_or_none(models.Repository, repo_id)
   if request.method != 'POST':
-    # XXX Use repo.key() so that the default gets picked up
-    form = BranchForm(initial={'repo': repo.key(),
+    # XXX Use repo.id so that the default gets picked up
+    form = BranchForm(initial={'repo': repo.id,
                                'url': repo.url,
                                'category': 'branch',
                                })
