@@ -21,9 +21,6 @@ import difflib
 import logging
 import urlparse
 
-# AppEngine imports
-from google.appengine.ext import db
-
 # Django imports
 from django.template import loader, RequestContext
 
@@ -113,16 +110,8 @@ def FetchBase(base, patch):
   if rev is not None:
     if rev == 0:
       # rev=0 means it's a new file.
-      return models.Content(text=db.Text(u''), parent=patch)
+      return models.Content(text=u'', parent=patch)
 
-  # AppEngine can only fetch URLs that db.Link() thinks are OK,
-  # so try converting to a db.Link() here.
-  try:
-    base = db.Link(base)
-  except db.BadValueError:
-    msg = 'Invalid base URL for fetching: %s' % base
-    logging.warn(msg)
-    raise FetchError(msg)
 
   url = _MakeUrl(base, filename, rev)
   logging.info('Fetching %s', url)
@@ -827,22 +816,22 @@ def _ExpandTemplate(name, request, **params):
 
 
 def ToText(text):
-  """Helper to turn a string into a db.Text instance.
+  """Helper to turn a string into unicode.
 
   Args:
     text: a string.
 
   Returns:
-    A db.Text instance.
+    a unicode string
   """
   if isinstance(text, unicode):
     # A TypeError is raised if text is unicode and an encoding is given.
-    return db.Text(text)
+    return unicode(text)
   else:
     try:
-      return db.Text(text, encoding='utf-8')
+      return unicode(text, encoding='utf-8')
     except UnicodeDecodeError:
-      return db.Text(text, encoding='latin-1')
+      return unicode(text, encoding='latin-1')
 
 
 def UnifyLinebreaks(text):

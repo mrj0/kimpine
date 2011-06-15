@@ -32,10 +32,6 @@ import urllib
 from cStringIO import StringIO
 from xml.etree import ElementTree
 
-# AppEngine imports
-from google.appengine.api import users
-from google.appengine.ext import db
-
 # Django imports
 # TODO(guido): Don't import classes/functions directly.
 from django import forms
@@ -53,6 +49,7 @@ from django.core.urlresolvers import reverse
 from django.core.mail import EmailMessage
 from django.core.cache import cache
 from django.contrib.auth.models import User
+from django.db import transaction
 
 # Local imports
 import models
@@ -1200,10 +1197,7 @@ def upload(request):
   This generates a text/plain response.
   """
   if request.user.is_anonymous():
-    if IS_DEV:
-      request.user = users.User(request.POST.get('user', 'test@example.com'))
-    else:
-      return HttpResponse('Login required', status=401)
+    return HttpResponse('Login required', status=401)
   # Check against old upload.py usage.
   if request.POST.get('num_parts') > 1:
     return HttpResponse('Upload.py is too old, get the latest version.',
@@ -1288,7 +1282,8 @@ def upload(request):
           content_entities.append(content)
         existing_patches = None  # Reduce memory usage.
         if new_content_entities:
-          db.put(new_content_entities)
+          for new_content in new_content_entities:
+            new_content.save()
 
         for patch, content_entity in zip(patches, content_entities):
           patch.content = content_entity
@@ -1299,7 +1294,8 @@ def upload(request):
             # be uploaded.  We mark this by prepending 'nobase' to the id.
             id_string = "nobase_" + str(id_string)
           msg += "\n%s %s" % (id_string, patch.filename)
-        db.put(patches)
+        for patch in patches:
+          patch.save()
   return HttpResponse(msg, content_type='text/plain')
 
 
@@ -1316,10 +1312,7 @@ def upload_content(request):
     return HttpResponse('ERROR: Upload content errors:\n%s' % repr(form.errors),
                         content_type='text/plain')
   if request.user.is_anonymous():
-    if IS_DEV:
-      request.user = users.User(request.POST.get('user', 'test@example.com'))
-    else:
-      return HttpResponse('Error: Login required', status=401)
+    return HttpResponse('Error: Login required', status=401)
   if request.user != request.issue.owner:
     return HttpResponse('ERROR: You (%s) don\'t own this issue (%s).' %
                         (request.user, request.issue.id))
@@ -1367,10 +1360,7 @@ def upload_patch(request):
   together.
   """
   if request.user.is_anonymous():
-    if IS_DEV:
-      request.user = users.User(request.POST.get('user', 'test@example.com'))
-    else:
-      return HttpResponse('Error: Login required', status=401)
+    return HttpResponse('Error: Login required', status=401)
   if request.user != request.issue.owner:
     return HttpResponse('ERROR: You (%s) don\'t own this issue (%s).' %
                         (request.user, request.issue.id))
@@ -1426,6 +1416,7 @@ def _make_new(request, form):
   if base is None:
     return None
 
+  @transaction.commit_on_success
   def txn():
     issue = models.Issue(subject=form.cleaned_data['subject'],
                          description=form.cleaned_data['description'],
@@ -1445,11 +1436,12 @@ def _make_new(request, form):
       patches = engine.ParsePatchSet(patchset)
       if not patches:
         raise EmptyPatchSet  # Abort the transaction
-      db.put(patches)
+      for patch in patches:
+        patch.save()
     return issue
 
   try:
-    issue = db.run_in_transaction(txn)
+    issue = txn()
   except EmptyPatchSet:
     errkey = url and 'url' or 'data'
     form.errors[errkey] = ['Patch set contains no recognizable patches']
@@ -1493,7 +1485,7 @@ def _get_data_url(form):
     return None
 
   if data is not None:
-    data = db.Blob(engine.UnifyLinebreaks(data.read()))
+    data = engine.UnifyLinebreaks(data.read())
     url = None
   elif url:
     try:
@@ -1504,7 +1496,7 @@ def _get_data_url(form):
     if fetch_result.status_code != 200:
       form.errors['url'] = ['HTTP status code %s' % fetch_result.status_code]
       return None
-    data = db.Blob(engine.UnifyLinebreaks(fetch_result.content))
+    data = engine.UnifyLinebreaks(fetch_result.content)
 
   return data, url, separate_patches
 
@@ -1545,7 +1537,8 @@ def _add_patchset_from_form(request, issue, form, message_key='message',
       errkey = url and 'url' or 'data'
       form.errors[errkey] = ['Patch set contains no recognizable patches']
       return None
-    db.put(patches)
+    for patch in patches:
+      patch.save()
 
   if emails_add_only:
     emails = _get_emails(form, 'reviewers')
@@ -1584,16 +1577,16 @@ def _get_emails_from_raw(raw_emails, form=None, label=None):
         if '@' not in email:
           account = models.Account.get_account_for_nickname(email)
           if account is None:
-            raise db.BadValueError('Invalid user: %s' % email)
+            raise ValueError('Invalid user: %s' % email)
           db_email = account.user.email.lower()
         elif email.count('@') != 1:
-          raise db.BadValueError('Invalid email address: %s' % email)
+          raise ValueError('Invalid email address: %s' % email)
         else:
           head, tail = email.split('@')
           if '.' not in tail:
-            raise db.BadValueError('Invalid email address: %s' % email)
+            raise ValueError('Invalid email address: %s' % email)
           db_email = email.lower()
-      except db.BadValueError, err:
+      except ValueError, err:
         if form:
           form.errors[label] = [unicode(err)]
         return None
@@ -1625,10 +1618,9 @@ def _calculate_delta(patch, patchset_id, patchsets):
       # just parse the patchset's data.  Note we can only do this if the
       # patchset was small enough to fit in the data property.
       if other.parsed_patches is None:
-        # PatchSet.data is stored as db.Blob (str). Try to convert it
+        # PatchSet.data is stored as str. Try to convert it
         # to unicode so that Python doesn't need to do this conversion
-        # when comparing text and patch.text, which is db.Text
-        # (unicode).
+        # when comparing text and patch.text, which is unicode.
         try:
           other.parsed_patches = engine.SplitPatch(other.data.decode('utf-8'))
         except UnicodeDecodeError:  # Fallback to str - unicode comparison.
@@ -1887,7 +1879,7 @@ def edit(request):
   issue.cc = cc
   if base_changed:
     for patchset in issue.patchset_set:
-      db.run_in_transaction(_delete_cached_contents, list(patchset.patch_set))
+      _delete_cached_contents(list(patchset.patch_set))
   issue.save()
   if issue.closed == was_closed:
     message = 'Edited'
@@ -1905,14 +1897,8 @@ def _delete_cached_contents(patch_set):
   patches = []
   contents = []
   for patch in patch_set:
-    try:
-      content = patch.content
-    except db.Error:
-      content = None
-    try:
-      patched_content = patch.patched_content
-    except db.Error:
-      patched_content = None
+    content = patch.content
+    patched_content = patch.patched_content
     if content is not None:
       contents.append(content)
     if patched_content is not None:
@@ -1922,10 +1908,12 @@ def _delete_cached_contents(patch_set):
     patches.append(patch)
   if contents:
     logging.info("Deleting %d contents", len(contents))
-    db.delete(contents)
+    for content in contents:
+      content.delete()
   if patches:
     logging.info("Updating %d patches", len(patches))
-    db.put(patches)
+    for patch in patches:
+      patch.save()
 
 
 @post_required
@@ -1958,7 +1946,7 @@ def delete_patchset(request):
       if patch.delta_calculated:
         if ps_id in patch.delta:
           patches.append(patch)
-  db.run_in_transaction(_patchset_delete, ps_delete, patches)
+  _patchset_delete(ps_delete, patches)
   return HttpResponseRedirect(reverse(show, args=[issue.id]))
 
 
@@ -1975,8 +1963,8 @@ def _patchset_delete(ps_delete, patches):
   for patch in patches:
     patch.delta.remove(patchset_id)
     tbp.append(patch)
-  if tbp:
-    db.put(tbp)
+  for obj in tbp:
+    obj.save()
   # delete cascades to Patch and Comment
 
 
@@ -2711,7 +2699,7 @@ def _inline_draft(request):
     comment.patch = patch
     comment.lineno = lineno
     comment.left = left
-    comment.text = db.Text(text)
+    comment.text = unicode(text)
     comment.message_id = message_id
     comment.save()
     # The actual count doesn't matter, just that there's at least one.
@@ -2877,7 +2865,7 @@ def publish(request):
   tbd.append(msg)
 
   for obj in tbd:
-    db.put(obj)
+    obj.save()
 
   # There are now no comments here (modulo race conditions)
   models.Account.get_account_for_user(request.user).update_drafts(issue, 0)
@@ -2981,8 +2969,8 @@ def _get_draft_details(request, comments):
                        c.lineno))
     output.append('\n%s\n%s:%d: %s\n%s' % (url, c.patch.filename, c.lineno,
                                            context, c.text.rstrip()))
-  if modified_patches:
-    db.put(modified_patches)
+  for patch in modified_patches:
+    patch.save()
   return '\n'.join(output)
 
 
@@ -3013,13 +3001,13 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
                          subject=subject,
                          sender=my_email,
                          recipients=reply_to,
-                         text=db.Text(text),
+                         text=unicode(text),
                          parent=issue)
   else:
     msg = draft
     msg.subject = subject
     msg.recipients = reply_to
-    msg.text = db.Text(text)
+    msg.text = unicode(text)
     msg.draft = False
     msg.date = datetime.datetime.now()
 
@@ -3241,8 +3229,7 @@ def repos(request):
   """/repos - Show the list of known Subversion repositories."""
   # Clean up garbage created by buggy edits
   bad_branches = models.Branch.objects.filter(owner=None)
-  if bad_branches:
-    db.delete(bad_branches)
+  bad_branches.delete()
   repo_map = {}
   for repo in models.Repository.objects.all():
     repo_map[str(repo.key())] = repo
@@ -3496,6 +3483,7 @@ def customized_upload_py(request):
                             'DEFAULT_REVIEW_SERVER = "%s"' % review_server)
 
   return HttpResponse(source, content_type='text/x-python')
+
 
 def _create_login_url(redirect):
     return django_settings.LOGIN_URL+'?next='+redirect
