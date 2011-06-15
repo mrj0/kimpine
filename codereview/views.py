@@ -52,6 +52,7 @@ from django.utils.safestring import mark_safe
 from django.core.urlresolvers import reverse
 from django.core.mail import EmailMessage
 from django.core.cache import cache
+from django.contrib.auth.models import User
 
 # Local imports
 import models
@@ -704,14 +705,17 @@ def user_key_required(func):
   def user_key_wrapper(request, user_key, *args, **kwds):
     user_key = urllib.unquote(user_key)
     if '@' in user_key:
-      request.user_to_show = users.User(user_key)
+      try:
+        request.user_to_show = User.objects.get(email=user_key)
+      except User.DoesNotExist:
+        request.user_to_show = None
     else:
-      account = models.Account.get_account_for_nickname(user_key)[0]
-      if not account:
+      accounts = models.Account.get_account_for_nickname(user_key)
+      if not accounts:
         logging.info("account not found for nickname %s" % user_key)
         return HttpResponseNotFound('No user found with that key (%s)' %
                                     urllib.quote(user_key))
-      request.user_to_show = account.user
+      request.user_to_show = accounts[0].user
     return func(request, *args, **kwds)
 
   return user_key_wrapper
