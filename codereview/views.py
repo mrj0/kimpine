@@ -2533,19 +2533,17 @@ def _get_comment_counts(account, patchset):
   """
   # A key-only query won't work because we need to fetch the patch key
   # in the for loop further down.
-  # TODO(kle): wtf, get all comments? needs a massive refactor
-  comment_query = models.Comment.objects.all()
-  comment_query.ancestor(patchset)
+  comment_query = models.Comment.objects.filter(patch__patchset=patchset)
 
   # Get all comment counts with one query rather than one per patch.
   comments_by_patch = {}
   drafts_by_patch = {}
   for c in comment_query:
-    pkey = models.Comment.patch.get_value_for_datastore(c)
+    patch_id = c.patch.id
     if not c.draft:
-      comments_by_patch[pkey] = comments_by_patch.setdefault(pkey, 0) + 1
+      comments_by_patch[patch_id] = comments_by_patch.setdefault(patch_id, 0) + 1
     elif account and c.author == account.user:
-      drafts_by_patch[pkey] = drafts_by_patch.setdefault(pkey, 0) + 1
+      drafts_by_patch[patch_id] = drafts_by_patch.setdefault(patch_id, 0) + 1
 
   return comments_by_patch, drafts_by_patch
 
@@ -2569,8 +2567,8 @@ def _add_next_prev(request, patchset, patch):
         found_patch = True
         continue
 
-      p._num_comments = comments_by_patch.get(p.key(), 0)
-      p._num_drafts = drafts_by_patch.get(p.key(), 0)
+      p._num_comments = comments_by_patch.get(p.id, 0)
+      p._num_drafts = drafts_by_patch.get(p.id, 0)
 
       if not found_patch:
           last_patch = p
@@ -2611,8 +2609,8 @@ def _add_next_prev2(user, ps_left, ps_right, patch_right):
         found_patch = True
         continue
 
-      p._num_comments = n_comments.get(p.key(), 0)
-      p._num_drafts = n_drafts.get(p.key(), 0)
+      p._num_comments = n_comments.get(p.id, 0)
+      p._num_drafts = n_drafts.get(p.id, 0)
 
       if not found_patch:
           last_patch = p
@@ -3272,7 +3270,7 @@ def repo_new(request):
   if not branch_url.endswith('/'):
     branch_url += '/'
   branch_url += 'trunk/'
-  branch = models.Branch(repo=repo, repo_name=repo.name, request.user,
+  branch = models.Branch(repo=repo, repo_name=repo.name, owner=request.user,
                          category='*trunk*', name='Trunk',
                          url=branch_url)
   branch.save()
