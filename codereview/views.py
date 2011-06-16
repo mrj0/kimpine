@@ -1469,8 +1469,8 @@ def _get_data_url(form):
   cleaned_data = form.cleaned_data
 
   data = cleaned_data['data']
-  url = cleaned_data.get('url')
-  separate_patches = cleaned_data.get('separate_patches')
+  url = cleaned_data['url']
+  separate_patches = cleaned_data['separate_patches']
   if not (data or url or separate_patches):
     form.errors['data'] = ['You must specify a URL or upload a file (< 1 MB).']
     return None
