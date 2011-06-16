@@ -969,7 +969,7 @@ def _paginate_issues(page_url,
     'nexttext': 'Older',
   }
   # Fetch one more to see if there should be a 'next' link
-  issues = query.fetch(limit+1, offset)
+  issues = query[offset:limit+1]
   if len(issues) > limit:
     del issues[limit:]
     params['next'] = _url(page_url, offset=offset + limit, **nav_parameters)
@@ -1009,7 +1009,7 @@ def _paginate_issues_with_cursor(page_url,
   Returns:
     Response for sending back to browser.
   """
-  issues = query.fetch(limit)
+  issues = query[:limit]
   nav_parameters = {}
   if extra_nav_parameters:
     nav_parameters.update(extra_nav_parameters)
@@ -1022,7 +1022,7 @@ def _paginate_issues_with_cursor(page_url,
   }
   # Fetch one more to see if there should be a 'next' link. Do it in a separate
   # request so we have a valid cursor.
-  if query.fetch(1):
+  if query.count():
     params['next'] = _url(page_url, **nav_parameters)
   if extra_template_params:
     params.update(extra_template_params)
@@ -3175,8 +3175,8 @@ def search(request):
   if format == 'html':
     keys_only = False
   q = models.Issue.objects.filter(keys_only=keys_only)
-  if form.cleaned_data.get('cursor'):
-    q.with_cursor(form.cleaned_data['cursor'])
+  #if form.cleaned_data.get('cursor'):
+  #  q.with_cursor(form.cleaned_data['cursor']) #TODO(kle):get this working at some point
   if form.cleaned_data.get('closed') != None:
     q.filter(closed=form.cleaned_data['closed'])
   if form.cleaned_data.get('owner'):
@@ -3199,7 +3199,7 @@ def search(request):
         'search_results.html',
         extra_nav_parameters=nav_params)
 
-  results = q.fetch(form.cleaned_data['limit'] or 100)
+  results = q[:form.cleaned_data['limit'] or 100]
   form.cleaned_data['cursor'] = q.cursor()
   if keys_only:
     # There's not enough information to filter. The only thing that is leaked is
