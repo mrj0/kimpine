@@ -2951,7 +2951,7 @@ def _get_draft_details(request, comments):
         else:
           new_lines = patch.get_patched_content().text.splitlines(True)
           linecache[last_key] = new_lines
-    file_lines = linecache.get(last_key, ())
+    file_lines = linecache[last_key]
     context = ''
     if patch.no_base_file:
       for old_line_no, new_line_no, line_text in file_lines:
