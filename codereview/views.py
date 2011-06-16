@@ -2586,7 +2586,7 @@ def _add_next_prev2(user, ps_left, ps_right, patch_right):
   patches = models.Patch.objects.filter(patchset=ps_right).order_by('filename')
   ps_right.patches = patches  # Required to render the jump to select.
 
-  account = models.Account.get_account_for_user(request.user)
+  account = models.Account.get_account_for_user(user)
   n_comments, n_drafts = _get_comment_counts(account, ps_right)
 
   last_patch = None

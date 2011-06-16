@@ -88,7 +88,7 @@ def ParsePatchSet(patchset):
   patches = []
   for filename, text in SplitPatch(patchset.data):
     patches.append(models.Patch(patchset=patchset, text=ToText(text),
-                                filename=filename, parent=patchset))
+                                filename=filename))
   return patches
 
 
@@ -110,7 +110,7 @@ def FetchBase(base, patch):
   if rev is not None:
     if rev == 0:
       # rev=0 means it's a new file.
-      return models.Content(text=u'', parent=patch)
+      return models.Content(text=u'')
 
 
   url = _MakeUrl(base, filename, rev)
@@ -125,8 +125,7 @@ def FetchBase(base, patch):
     msg = 'Error fetching %s: HTTP status %s' % (url, result.status_code)
     logging.warn('FetchBase: %s', msg)
     raise FetchError(msg)
-  return models.Content(text=ToText(UnifyLinebreaks(result.content)),
-                        parent=patch)
+  return models.Content(text=ToText(UnifyLinebreaks(result.content)))
 
 
 def _MakeUrl(base, filename, rev):
