@@ -624,7 +624,11 @@ class Account(db.Model):
     """Get the list of Accounts that have this nickname."""
     assert nickname
     assert '@' not in nickname
-    return cls.objects.filter(nickname__iexact=nickname)
+    try:
+      account = cls.objects.get(nickname__iexact=nickname)
+    except cls.DoesNotExist:
+      account = None
+    return account
 
   @classmethod
   def get_email_for_nickname(cls, nickname):

@@ -707,12 +707,12 @@ def user_key_required(func):
       except User.DoesNotExist:
         request.user_to_show = None
     else:
-      accounts = models.Account.get_account_for_nickname(user_key)
-      if not accounts:
+      account = models.Account.get_account_for_nickname(user_key)
+      if not account:
         logging.info("account not found for nickname %s" % user_key)
         return HttpResponseNotFound('No user found with that key (%s)' %
                                     urllib.quote(user_key))
-      request.user_to_show = accounts[0].user
+      request.user_to_show = account.user
     return func(request, *args, **kwds)
 
   return user_key_wrapper
