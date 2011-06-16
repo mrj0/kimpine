@@ -33,10 +33,14 @@ def _enforce_account_by_email(fn):
   return inner
 
 
-class BaseFeed(Feed):
+class BaseFeed(Feed): #TODO(kle): fix feeds
   title = 'Code Review'
   description = 'Rietveld: Code Review Tool hosted on Google App Engine'
   feed_type = Atom1Feed
+
+  def __init__(self, *args, **kwargs):
+    self.request = kwargs.pop('request', None)
+    super(BaseFeed, self).__init__(*args, **kwargs)
 
   def link(self):
     return reverse('codereview.views.index')
@@ -58,7 +62,7 @@ class BaseFeed(Feed):
     if isinstance(item, models.Message):
       return '%s#msg-%s' % (reverse('codereview.views.show',
                                     args=[item.issue.id]),
-                            item.key())
+                            item.id)
     return reverse('codereview.views.show', args=[item.id])
 
   def item_title(self, item):
@@ -66,11 +70,11 @@ class BaseFeed(Feed):
 
   def item_author_name(self, item):
     if isinstance(item, models.Issue):
-      return library.get_nickname(item.owner, True)
+      return library.get_nickname(item.owner, self.request, True)
     if isinstance(item, models.PatchSet):
-      return library.get_nickname(item.issue.owner, True)
+      return library.get_nickname(item.issue.owner, self.request, True)
     if isinstance(item, models.Message):
-      return library.get_nickname(item.sender, True)
+      return library.get_nickname(item.sender, self.request, True)
     return 'Rietveld'
 
   def item_pubdate(self, item):
