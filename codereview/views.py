@@ -1673,7 +1673,7 @@ def _get_patchset_info(request, patchset_id):
     returned.
   """
   issue = request.issue
-  patchsets = list(issue.patchset_set.order('created'))
+  patchsets = list(issue.patchset_set.order_by('created'))
   response = None
   if not patchset_id and patchsets:
     patchset_id = patchsets[-1].id
@@ -1696,7 +1696,7 @@ def _get_patchset_info(request, patchset_id):
     patchset.patches = None
     patchset.parsed_patches = None
     if patchset_id == patchset.id:
-      patchset.patches = list(patchset.patch_set.order('filename'))
+      patchset.patches = list(patchset.patch_set.order_by('filename'))
       attempt = _clean_int(request.GET.get('attempt'), 0, 0)
       if attempt < 0:
         response = HttpResponse('Invalid parameter', status=404)
@@ -1761,7 +1761,7 @@ def show(request, form=None):
       first_patch = last_patchset.patches[0]
   messages = []
   has_draft_message = False
-  for msg in issue.message_set.order('date'):
+  for msg in issue.message_set.order_by('date'):
     if not msg.draft:
       messages.append(msg)
     elif msg.draft and request.user and msg.sender == request.user.email:
@@ -2123,14 +2123,14 @@ def download_patch(request):
 def _issue_as_dict(issue, messages, request=None):
   """Converts an issue into a dict."""
   values = {
-    'owner': library.get_nickname(issue.owner, True, request),
+    'owner': library.get_nickname(issue.owner, request, True),
     'owner_email': issue.owner.email,
     'modified': str(issue.modified),
     'created': str(issue.created),
     'closed': issue.closed,
     'cc': issue.cc,
     'reviewers': issue.reviewers,
-    'patchsets': [p.id for p in issue.patchset_set.order('created')],
+    'patchsets': [p.id for p in issue.patchset_set.order_by('created')],
     'description': issue.description,
     'subject': issue.subject,
     'issue': issue.id,
@@ -2156,7 +2156,7 @@ def _patchset_as_dict(patchset, request=None):
   values = {
     'patchset': patchset.id,
     'issue': patchset.issue.id,
-    'owner': library.get_nickname(patchset.issue.owner, True, request),
+    'owner': library.get_nickname(patchset.issue.owner, request, True),
     'owner_email': patchset.issue.owner.email,
     'message': patchset.message,
     'url': patchset.url,
@@ -2188,7 +2188,7 @@ def api_issue(request):
   """/api/<issue> - Gets issue's data as a JSON-encoded dictionary."""
   messages = ('messages' in request.GET and
       request.GET.get('messages').lower() == 'true')
-  values = _issue_as_dict(request.issue, messages, request)
+  values = _issue_as_dict(request.issue, request, messages)
   return values
 
 
@@ -2247,7 +2247,7 @@ def diff(request):
   patchset = request.patchset
   patch = request.patch
 
-  patchsets = list(request.issue.patchset_set.order('created'))
+  patchsets = list(request.issue.patchset_set.order_by('created'))
 
   context = _get_context_for_user(request)
   column_width = _get_column_width_for_user(request)
@@ -2473,7 +2473,7 @@ def diff2(request, ps_left_id, ps_right_id, patch_filename):
   if isinstance(data, HttpResponseNotFound):
     return data
 
-  patchsets = list(request.issue.patchset_set.order('created'))
+  patchsets = list(request.issue.patchset_set.order_by('created'))
 
   if data["patch_right"]:
     _add_next_prev2(request.user, data["ps_left"], data["ps_right"], data["patch_right"])
@@ -2676,9 +2676,11 @@ def _inline_draft(request):
   message_id = request.POST.get('message_id')
   comment = None
   if message_id:
-    comment = models.Comment.get_by_key_name(message_id, parent=patch)
-    if comment is None or not comment.draft or comment.author != request.user:
+    try:
+      comment = models.Comment.objects.get(message_id=message_id, patch=patch)
+    except models.Comment.DoesNotExist:
       comment = None
+    if comment is None or not comment.draft or comment.author != request.user:
       message_id = None
   if not message_id:
     # Prefix with 'z' to avoid key names starting with digits.
@@ -2693,13 +2695,12 @@ def _inline_draft(request):
       account.update_drafts(issue)
   else:
     if comment is None:
-      comment = models.Comment(key_name=message_id, parent=patch, author=request.user) # TODO(kle): key_name wtf
-                                                                                          # also user.id
-    comment.patch = patch
-    comment.lineno = lineno
-    comment.left = left
-    comment.text = unicode(text)
-    comment.message_id = message_id
+      comment = models.Comment(message_id=message_id,
+                               patch=patch,
+                               author=request.user,
+                               lineno=lineno,
+                               left=left,
+                               text=unicode(text))
     comment.save()
     # The actual count doesn't matter, just that there's at least one.
     account.update_drafts(issue, 1)
@@ -2741,10 +2742,10 @@ def _get_affected_files(issue):
   files = []
   modified_count = 0
   diff = ''
-  patchsets = list(issue.patchset_set.order('created'))
+  patchsets = list(issue.patchset_set.order_by('created'))
   if len(patchsets):
     patchset = patchsets[-1]
-    for patch in patchset.patch_set.order('filename'):
+    for patch in patchset.patch_set.order_by('filename'):
       file_str = ''
       if patch.status:
         file_str += patch.status + ' '
@@ -2897,8 +2898,8 @@ def _get_draft_comments(request, issue, preview=False):
   comments = []
   tbd = []
   # XXX Should request all drafts for this issue once, now we can.
-  for patchset in issue.patchset_set.order('created'):
-    ps_comments = models.Comment.objects.filter(patchset=patchset,
+  for patchset in issue.patchset_set.order_by('created'):
+    ps_comments = models.Comment.objects.filter(patch__patchset=patchset,
                                                 author=request.user,
                                                 draft=True)
     if ps_comments:
@@ -2911,13 +2912,14 @@ def _get_draft_comments(request, issue, preview=False):
         # NOTE: Unlike the old version of this code, this is the
         # recommended and documented way to do this!
         patch_id = c.patch.id
-        if pkey in patches:
+        if patch_id in patches:
           patch = patches[patch_id]
           c.patch = patch
       if not preview:
-        tbd.append(ps_comments)
+        tbd.extend(ps_comments)
         patchset.update_comment_count(len(ps_comments))
         tbd.append(patchset)
+      ps_comments = list(ps_comments)
       ps_comments.sort(key=lambda c: (c.patch.filename, not c.left,
                                       c.lineno, c.date))
       comments += ps_comments
@@ -3012,12 +3014,12 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
 
   if send_mail:
     url = request.build_absolute_uri(reverse(show, args=[issue.id]))
-    reviewer_nicknames = ', '.join(library.get_nickname(rev_temp, True,
-                                                        request)
+    reviewer_nicknames = ', '.join(library.get_nickname(rev_temp, request,
+                                                        True)
                                    for rev_temp in issue.reviewers)
-    cc_nicknames = ', '.join(library.get_nickname(cc_temp, True, request)
+    cc_nicknames = ', '.join(library.get_nickname(cc_temp, request, True)
                              for cc_temp in cc)
-    my_nickname = library.get_nickname(request.user, True, request)
+    my_nickname = library.get_nickname(request.user, request, True)
     reply_to = ', '.join(reply_to)
     description = (issue.description or '').replace('\r\n', '\n')
     home = request.build_absolute_uri(reverse(index))
@@ -3029,13 +3031,12 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
                     })
     body = django.template.loader.render_to_string(
       template, context, context_instance=RequestContext(request))
-    logging.warn('Mail: to=%s; cc=%s', ', '.join(to), ', '.join(cc))
+    logging.info('Mail: to=%s; cc=%s', ', '.join(to), ', '.join(cc))
     headers = { 'Reply-To': reply_to }
-    mail_args = {'from_mail': my_email,
+    mail_args = {'from_email': my_email,
                  'to': [_encode_safely(address) for address in to],
                  'subject': _encode_safely(subject),
                  'body': _encode_safely(body),
-                 'reply_to': _encode_safely(reply_to),
                  'headers': headers}
     if cc:
       headers['Cc'] = ', '.join(_encode_safely(address) for address in cc)
@@ -3049,7 +3050,8 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
       except:
         attempts += 1
         if attempts >= 3:
-          raise
+          logging.error("Failed to send email")
+          break
     if attempts:
       logging.warning("Retried sending email %s times", attempts)
 
