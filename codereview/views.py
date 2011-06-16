@@ -3388,9 +3388,10 @@ def settings(request):
                                  'column_width': default_column_width,
                                  'notify_by_email': account.notify_by_email,
                                  'notify_by_chat': account.notify_by_chat,
-                                 })
+                                 },
+                        request=request)
     return respond(request, 'settings.html', {'form': form})
-  form = SettingsForm(request.POST)
+  form = SettingsForm(request.POST, request=request)
   if form.is_valid():
     account.nickname = form.cleaned_data.get('nickname')
     account.default_context = form.cleaned_data.get('context')
