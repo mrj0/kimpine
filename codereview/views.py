@@ -1277,13 +1277,12 @@ def upload(request):
             patch.status = existing_patches[patch.filename].status
             patch.is_binary = existing_patches[patch.filename].is_binary
           if not content:
-            content = models.Content(is_uploaded=True, parent=patch)
+            content = models.Content(is_uploaded=True)
             new_content_entities.append(content)
           content_entities.append(content)
         existing_patches = None  # Reduce memory usage.
-        if new_content_entities:
-          for new_content in new_content_entities:
-            new_content.save()
+        for new_content in new_content_entities:
+          new_content.save()
 
         for patch, content_entity in zip(patches, content_entities):
           patch.content = content_entity
@@ -1324,7 +1323,7 @@ def upload_content(request):
   if form.cleaned_data['is_current']:
     if patch.patched_content:
       return HttpResponse('ERROR: Already have current content.')
-    content = models.Content(is_uploaded=True, parent=patch)
+    content = models.Content(is_uploaded=True)
     content.save()
     patch.patched_content = content
     patch.save()
@@ -1375,10 +1374,10 @@ def upload_patch(request):
   text = engine.ToText(engine.UnifyLinebreaks(form.get_uploaded_patch()))
   patch = models.Patch(patchset=patchset,
                        text=text,
-                       filename=form.cleaned_data['filename'], parent=patchset)
+                       filename=form.cleaned_data['filename'])
   patch.save()
   if form.cleaned_data.get('content_upload'):
-    content = models.Content(is_uploaded=True, parent=patch)
+    content = models.Content(is_uploaded=True)
     content.save()
     patch.content = content
     patch.save()
@@ -1428,7 +1427,7 @@ def _make_new(request, form):
                          n_comments=0)
     issue.save()
 
-    patchset = models.PatchSet(issue=issue, data=data, url=url, parent=issue)
+    patchset = models.PatchSet(issue=issue, data=data, url=url)
     patchset.save()
     issue.patchset = patchset
 
@@ -1526,8 +1525,7 @@ def _add_patchset_from_form(request, issue, form, message_key='message',
     return None
   data, url, separate_patches = data_url
   message = form.cleaned_data[message_key]
-  patchset = models.PatchSet(issue=issue, message=message, data=data, url=url,
-                             parent=issue)
+  patchset = models.PatchSet(issue=issue, message=message, data=data, url=url)
   patchset.save()
 
   if not separate_patches:
@@ -3002,8 +3000,7 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
                          subject=subject,
                          sender=my_email,
                          recipients=reply_to,
-                         text=unicode(text),
-                         parent=issue)
+                         text=unicode(text))
   else:
     msg = draft
     msg.subject = subject
@@ -3140,8 +3137,7 @@ def _post_draft_message(request, draft):
     draft: A Message instance or None.
   """
   if draft is None:
-    draft = models.Message(issue=request.issue, parent=request.issue,
-                           sender=request.user.email, draft=True)
+    draft = models.Message(issue=request.issue, sender=request.user.email, draft=True)
   draft.text = request.POST.get('reviewmsg')
   draft.save()
   return HttpResponse(draft.text, content_type='text/plain')

@@ -388,7 +388,7 @@ class Patch(db.Model):
     for tag, old, new in patching.PatchChunks(old_lines, chunks):
       new_lines.extend(new)
     text = db.Text(''.join(new_lines))
-    patched_content = Content(text=text, parent=self)
+    patched_content = Content(text=text)
     patched_content.save()
     self.patched_content = patched_content
     self.save()
