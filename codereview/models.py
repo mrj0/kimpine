@@ -220,19 +220,20 @@ class PatchSet(models.Model):
     return self.n_comments or 0
 
 
-class Message(db.Model):
+class Message(models.Model):
   """A copy of a message sent out in email.
 
   This is a descendant of an Issue.
   """
 
-  issue = db.ReferenceProperty(Issue)  # == parent
-  subject = db.StringProperty()
-  sender = db.EmailProperty()
-  recipients = db.ListProperty(db.Email)
-  date = db.DateTimeProperty(auto_now_add=True)
-  text = db.TextProperty()
-  draft = db.BooleanProperty(default=False)
+  issue = models.ForeignKey(Issue)
+  subject = models.CharField(max_length=100, default='')
+  sender = models.EmailField()
+  recipients = MultiEmailField()
+  date = models.DateTimeField(auto_now_add=True)
+  text = models.TextField()
+  draft = models.BooleanField(default=False)
+
 
   _approval = None
 

@@ -2988,7 +2988,7 @@ def _make_message(request, issue, message, comments=None, send_mail=False,
   if my_email in cc:
     cc.remove(my_email)
   subject = 'CodeReview: %s (issue%d)' % (issue.subject, issue.id)
-  if issue.message_set.count(1) > 0:
+  if issue.message_set.count() > 0:
     subject = 'Re: ' + subject
   if comments:
     details = _get_draft_details(request, comments)
