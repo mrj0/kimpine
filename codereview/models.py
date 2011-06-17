@@ -40,23 +40,6 @@ CONTEXT_CHOICES = (3, 10, 25, 50, 75, 100)
 
 ### Custom Fields
 
-class BlobField(models.TextField):
-
-    __metaclass__ = models.SubfieldBase
-
-    def get_db_prep_value(self, value):
-        if value is None:
-            return value
-        return base64.encodestring(value)
-
-    def to_python(self, value):
-        if value is None:
-            return value
-        if isinstance(value, str):
-            return value
-        else:
-            return str(base64.decodestring(value))
-
 class MultiEmailField(models.TextField):
 
   __metaclass__ = models.SubfieldBase
@@ -199,7 +182,7 @@ class PatchSet(models.Model):
 
   issue = models.ForeignKey(Issue)
   message = models.CharField(max_length=500, default='')
-  data = BlobField(null=True, blank=True)
+  data = models.TextField(null=True, blank=True)
   url = models.URLField(null=True, blank=True)
   created = models.DateTimeField(auto_now_add=True)
   modified = models.DateTimeField(auto_now=True)
@@ -250,20 +233,20 @@ class Message(models.Model):
     return self._approval
 
 
-class Content(db.Model):
+class Content(models.Model):
   """The content of a text file.
 
   This is a descendant of a Patch.
   """
 
   # parent => Patch
-  text = db.TextProperty()
-  data = db.BlobProperty()
-  # Checksum over text or data depending on the type of this content.
-  checksum = db.TextProperty()
-  is_uploaded = db.BooleanProperty(default=False)
-  is_bad = db.BooleanProperty(default=False)
-  file_too_large = db.BooleanProperty(default=False)
+  text = models.TextField(null=True, blank=True)
+  data = models.TextField(null=True, blank=True)
+  # checksum over text/data depending on content type
+  checksum = models.TextField(null=True, blank=True)
+  is_uploaded = models.BooleanField(default=False)
+  is_bad = models.BooleanField(default=False)
+  file_too_large = models.BooleanField(default=False)
 
   @property
   def lines(self):
