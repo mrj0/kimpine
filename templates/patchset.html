@@ -59,7 +59,7 @@
         </td>
         <td style="white-space: nowrap">
         {%for delta in patch.parsed_deltas%}
-          <a href="{%url codereview.views.diff2 issue.id,delta.1,patchset.id,patch.filename%}"
+          <a href="{%url codereview.views.diff2 issue.id,delta.1.id,patchset.id,patch.filename%}"
              title="Delta from patch set {{delta.0}}">{{delta.0}}</a>
         {%endfor%}
         </td>

@@ -62,8 +62,8 @@ class MultiForeignKeyField(models.TextField):
 
   __metaclass__ = models.SubfieldBase
 
-  def __init__(self, model, *args, **kwargs):
-    self.model = model
+  def __init__(self, submodel, *args, **kwargs):
+    self.submodel = submodel
     super(MultiForeignKeyField, self).__init__(*args, **kwargs)
 
   def get_db_prep_value(self, value):
@@ -76,7 +76,9 @@ class MultiForeignKeyField(models.TextField):
       return value
     if value is None:
       return value
-    return (self.model.get(id=int(id)) for id in value.split(','))
+    if value == '':
+      return []
+    return (self.submodel.objects.get(id=int(id)) for id in value.split(','))
 
 
 ### Issues, PatchSets, Patches, Contents, Comments, Messages ###
@@ -256,22 +258,22 @@ class Content(models.Model):
     return self.text.splitlines(True)
 
 
-class Patch(db.Model):
+class Patch(models.Model):
   """A single patch, i.e. a set of changes to a single file.
 
   This is a descendant of a PatchSet.
   """
 
-  patchset = db.ReferenceProperty(PatchSet)  # == parent
-  filename = db.StringProperty()
-  status = db.StringProperty()  # 'A', 'A  +', 'M', 'D' etc
-  text = db.TextProperty()
-  content = db.ReferenceProperty(Content)
-  patched_content = db.ReferenceProperty(Content, collection_name='patch2_set')
-  is_binary = db.BooleanProperty(default=False)
+  patchset = models.ForeignKey(PatchSet) # == parent
+  filename = models.CharField(max_length=500)
+  status = models.CharField(max_length=100, null=True, blank=True) # 'A', 'A  +', 'M', 'D' etc
+  text = models.TextField(null=True, blank=True)
+  content = models.ForeignKey(Content, null=True, blank=True)
+  patched_content = models.ForeignKey(Content, related_name='patch2_set', null=True, blank=True)
+  is_binary = models.BooleanField(default=False)
   # Ids of patchsets that have a different version of this file.
-  delta = db.ListProperty(int)
-  delta_calculated = db.BooleanProperty(default=False)
+  delta = MultiForeignKeyField(PatchSet,null=True, blank=True)
+  delta_calculated = models.BooleanField(default=False)
 
   _lines = None
 

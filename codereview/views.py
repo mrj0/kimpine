@@ -1628,12 +1628,12 @@ def _calculate_delta(patch, patchset_id, patchsets):
       for filename, text in other.parsed_patches:
         if filename == patch.filename:
           if text != patch.text:
-            delta.append(other.id)
+            delta.append(other)
           break
       else:
         # We could not find the file in the previous patchset. It must
         # be new wrt that patchset.
-        delta.append(other.id)
+        delta.append(other)
     else:
       # other (patchset) is too big to hold all the patches inside itself, so
       # we need to go to the datastore.  Use the index to see if there's a
@@ -1645,12 +1645,12 @@ def _calculate_delta(patch, patchset_id, patchsets):
                      len(other_patches))
       for op in other_patches:
         if op.text != patch.text:
-          delta.append(other.id)
+          delta.append(other)
           break
       else:
         # We could not find the file in the previous patchset. It must
         # be new wrt that patchset.
-        delta.append(other.id)
+        delta.append(other)
 
   return delta
 
@@ -1688,9 +1688,9 @@ def _get_patchset_info(request, patchset_id):
   issue.draft_count = len(drafts)
   for c in drafts:
     c.ps_key = c.patch.patchset.id
-  patchset_id_mapping = {}  # Maps from patchset id to its ordering number.
+  patchset_mapping = {}  # Maps from patchset id to its ordering number.
   for patchset in patchsets:
-    patchset_id_mapping[patchset.id] = len(patchset_id_mapping) + 1
+    patchset_mapping[patchset] = len(patchset_mapping) + 1
     patchset.n_drafts = sum(c.ps_key == patchset.id for c in drafts)
     patchset.patches = None
     patchset.parsed_patches = None
@@ -1738,7 +1738,7 @@ def _get_patchset_info(request, patchset_id):
         patch._lines = None
         patch.parsed_deltas = []
         for delta in patch.delta:
-          patch.parsed_deltas.append([patchset_id_mapping[delta], delta])
+          patch.parsed_deltas.append([patchset_mapping[delta], delta])
   # Reduce memory usage (see above comment).
   for patchset in patchsets:
     patchset.parsed_patches = None
@@ -1936,13 +1936,12 @@ def delete_patchset(request):
   """
   issue = request.issue
   ps_delete = request.patchset
-  ps_id = ps_delete.id
   patchsets_after = issue.patchset_set.filter(created__lt=ps_delete.created)
   patches = []
   for patchset in patchsets_after:
     for patch in patchset.patch_set.all():
       if patch.delta_calculated:
-        if ps_id in patch.delta:
+        if ps_delete in patch.delta:
           patches.append(patch)
   _patchset_delete(ps_delete, patches)
   return HttpResponseRedirect(reverse(show, args=[issue.id]))
@@ -1956,10 +1955,9 @@ def _patchset_delete(ps_delete, patches):
     patches: Patches that have delta against patches of ps_delete.
 
   """
-  patchset_id = ps_delete.id
   tbp = []
   for patch in patches:
-    patch.delta.remove(patchset_id)
+    patch.delta.remove(ps_delete)
     tbp.append(patch)
   for obj in tbp:
     obj.save()
@@ -2605,13 +2603,13 @@ def _add_next_prev2(user, ps_left, ps_right, patch_right):
       if not found_patch:
           last_patch = p
           if ((p.num_comments > 0 or p.num_drafts > 0) and
-              ps_left.id in p.delta):
+              ps_left in p.delta):
             last_patch_with_comment = p
       else:
           if next_patch is None:
             next_patch = p
           if ((p.num_comments > 0 or p.num_drafts > 0) and
-              ps_left.id in p.delta):
+              ps_left in p.delta):
             next_patch_with_comment = p
             # safe to stop scanning now because the next with out a comment
             # will already have been filled in by some earlier patch
