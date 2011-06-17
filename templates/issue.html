@@ -10,7 +10,7 @@
     message{%endif%}.
     Drafts are not viewable by others;
     use <a class="novisit"
-	   href="{%url codereview.views.publish issue.key.id%}">
+	   href="{%url codereview.views.publish issue.id%}">
     Publish+Mail Comments</a> ('m') to let others view them.
   </div>
 {%endif%}
@@ -29,8 +29,8 @@
 
 {%for patchset in patchsets%}
   <h3>
-    <a id="ps-{{patchset.key.id}}-pointer"
-       href="javascript:M_toggleSectionForPS('{{issue.key.id}}', '{{patchset.key.id}}')"
+    <a id="ps-{{patchset.id}}-pointer"
+       href="javascript:M_toggleSectionForPS('{{issue.id}}', '{{patchset.id}}')"
        class="toggled-section {%if forloop.last%}opentriangle{%endif%}">
       Patch Set {{forloop.counter}}
       {%if patchset.message%}: {{patchset.message}}{%endif%}
@@ -48,7 +48,7 @@
     </div>
   {%endif%}
 
-  <div id="ps-{{patchset.key.id}}"
+  <div id="ps-{{patchset.id}}"
   {%if forloop.last%}
        style="">
     {%include "patchset.html"%}
@@ -70,7 +70,7 @@
     </h3>
 
     <form id="add" style="{%if not form.errors%}display:none{%endif%}"
-          action="{%url codereview.views.add issue.key.id%}" method="post"
+          action="{%url codereview.views.add issue.id%}" method="post"
           enctype="multipart/form-data">
       <input type="hidden" name="xsrf_token" value="{{xsrf_token}}">
       <table>
@@ -79,7 +79,7 @@
           <td><input type="submit" value="Add Patch Set" /></td>
           <td>
             You can also add a patch set to this issue using
-            <code>upload.py -i {{issue.key.id}}</code>
+            <code>upload.py -i {{issue.id}}</code>
           </td>
         </tr>
       </table>
@@ -110,9 +110,9 @@
 
     {%for message in messages%}
       <div class="message {%if message.approval%}approval{%endif%}"
-           id="msg-{{message.key}}"
+           id="msg-{{message.message_id}}"
            name="{{forloop.counter0}}">
-        <a name="msg-{{message.key}}"></a>
+        <a name="msg-{{message.message_id}}"></a>
         <div class="header">
           <table border="0" width="100%" cellspacing="0" cellpadding="0">
             <tr class="comment_title"
@@ -187,7 +187,7 @@
 
 {%if user.is_authenticated%}
   <div style="display:none;">
-    <form method="POST" action="{%url codereview.views.publish issue.key.id%}"
+    <form method="POST" action="{%url codereview.views.publish issue.id%}"
           id="message-reply-form">
       <input type="hidden" name="xsrf_token" value="{{xsrf_token}}">
       <div></div>

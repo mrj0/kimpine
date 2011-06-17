@@ -2,7 +2,7 @@
 {%block title1%}Edit Issue -{%endblock%}
 {%block head%}{{form.media}}{%endblock%}
 {%block issue_body%}
-<form action="{%url codereview.views.edit issue.key.id%}"
+<form action="{%url codereview.views.edit issue.id%}"
       method="post" id="edit-form">
 <input type="hidden" name="xsrf_token" value="{{xsrf_token}}">
 <table>
@@ -34,7 +34,7 @@ M_addTextResizer_(document.getElementById("edit-form"));
 {%ifequal issue.owner user%}
 <h2>Delete This Issue</h2>
 
-<form action="{%url codereview.views.delete issue.key.id%}" method="post">
+<form action="{%url codereview.views.delete issue.id%}" method="post">
 <input type="hidden" name="xsrf_token" value="{{xsrf_token}}">
 <input type="submit" value="Delete Issue"> There is no undo!
 </form>

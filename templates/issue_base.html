@@ -37,15 +37,15 @@
   <h2>
     {%include "issue_star.html"%}
 {%if issue|can_edit:user and not issue.closed%}
-<span class="issue-close" id="issue-close-{{issue.key.id}}">
-    <a href="javascript:M_closeIssue({{issue.key.id}})">
+<span class="issue-close" id="issue-close-{{issue.id}}">
+    <a href="javascript:M_closeIssue({{issue.id}})">
       <img src="{{media_url}}close.gif" title="Close This Issue" width="15"
 	   height="15" border="0"></a>
 </span>
 {%endif%}
-    Issue <a href="{%url codereview.views.show issue.key.id%}"
+    Issue <a href="{%url codereview.views.show issue.id%}"
                onmouseover="M_showPopUp(this, 'popup-issue');">
-            {{issue.key.id}}</a>:
+            {{issue.id}}</a>:
     {{issue.subject}} {%if issue.closed %} (Closed) {%endif%}
   </h2>
 
@@ -57,7 +57,7 @@
           <div>
             {%if issue|can_edit:user%}
               <a class="novisit"
-                 href="{%url codereview.views.edit issue.key.id%}">
+                 href="{%url codereview.views.edit issue.id%}">
                 Edit Issue
               </a>
             {%else%}
@@ -66,7 +66,7 @@
             <br/>
             {%if user.is_authenticated%}
               <a class="novisit"
-                 href="{%url codereview.views.publish issue.key.id%}">
+                 href="{%url codereview.views.publish issue.id%}">
                 Publish+Mail Comments
               </a> ('m')
             {%else%}
@@ -75,7 +75,7 @@
             {%if last_patchset and first_patch%}
               <br/>
               <a class="novisit"
-                 href="{%url codereview.views.diff issue.key.id,last_patchset.key.id,first_patch.filename%}">
+                 href="{%url codereview.views.diff issue.id,last_patchset.id,first_patch.filename%}">
                 <b>Start Review</b>
               </a>
             {%endif%}
@@ -118,7 +118,7 @@
 {%block popup%}
   {%if issue%}
     <div class="popup" id="popup-issue">
-      <b>Issue {{issue.key.id}}: {{issue.subject}}
+      <b>Issue {{issue.id}}: {{issue.subject}}
 	{%if issue.closed %} (Closed) {%endif%}</b><br/>
       Created {{issue.created|timesince}} ago by {%nickname issue.owner%}<br/>
       Modified {{issue.modified|timesince}} ago<br/>

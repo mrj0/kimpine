@@ -15,7 +15,7 @@ login_warned = false;
 <div style="float: left;">
   <h2 style="margin-bottom: 0em; margin-top: 0em;">Side by Side diff: {{ filename }}</h2>
   <div style="margin-top: .2em;">{%include "issue_star.html"%}
-    <b>Issue <a href="{%url codereview.views.show issue.key.id%}" onmouseover="M_showPopUp(this, 'popup-issue');" id="upCL">{{issue.key.id}}</a>:</b>
+    <b>Issue <a href="{%url codereview.views.show issue.id%}" onmouseover="M_showPopUp(this, 'popup-issue');" id="upCL">{{issue.id}}</a>:</b>
   {{issue.subject}} {%if issue.closed %} (Closed) {%endif%}
   {%if issue.base%}<span class="extra">Base URL: {{issue.base}}</span>{%endif%}</div>
   <div style="margin-top: .4em;">
@@ -35,18 +35,18 @@ login_warned = false;
           <select name="left" id="left">
             <option value="-1">Base</option>
             {%for p in patchsets%}
-            <option value="{{p.key.id}}">Patch Set {{forloop.counter}}: {{p.message}}</option>
+            <option value="{{p.id}}">Patch Set {{forloop.counter}}: {{p.message}}</option>
             {%endfor%}
           </select>
         </td>
-        <td rowspan="2"><input type="button" value="Go" onclick="M_navigateDiff({{issue.key.id}}, '{{filename|escapejs}}')"></td>
+        <td rowspan="2"><input type="button" value="Go" onclick="M_navigateDiff({{issue.id}}, '{{filename|escapejs}}')"></td>
       </tr>
       <tr>
         <td>Right:</td>
         <td>
           <select name="right" id="right">
             {%for p in patchsets%}
-            <option value="{{p.key.id}}" {%ifequal patchset.key.id p.key.id%}selected="selected"{%endifequal%}>Patch Set {{forloop.counter}}: {{p.message}}</option>
+            <option value="{{p.id}}" {%ifequal patchset.id p.id%}selected="selected"{%endifequal%}>Patch Set {{forloop.counter}}: {{p.message}}</option>
             {%endfor%}
           </select>
         </td>
@@ -58,7 +58,7 @@ login_warned = false;
 <div class="error">
   <p>The selected patch doesn't exist in the selected patchset.</p>
   <p>Use the patchset chooser above or go back to the
-    <a href="{%url codereview.views.show issue.key.id%}">issue page</a>.
+    <a href="{%url codereview.views.show issue.id%}">issue page</a>.
   </p>
 </div>
 {%endblock%}

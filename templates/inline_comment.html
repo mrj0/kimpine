@@ -36,9 +36,9 @@ class="{%if bucket.quoted%}comment-text-quoted{%else%}comment-text{%endif%}"
       name="comment-form-{{forloop.counter0}}-{{lineno}}-{{side}}"
       style="display:none" action="{%url codereview.views.inline_draft%}" method = "POST">
 <div>
-<input type="hidden" name="issue" value="{{issue.key.id}}">
-<input type="hidden" name="patchset" value="{{patchset.key.id}}">
-<input type="hidden" name="patch" value="{{patch.key.id}}">
+<input type="hidden" name="issue" value="{{issue.id}}">
+<input type="hidden" name="patchset" value="{{patchset.id}}">
+<input type="hidden" name="patch" value="{{patch.id}}">
 <input type="hidden" name="snapshot" value="{{snapshot}}">
 <input type="hidden" name="side" value="{{side}}">
 <input type="hidden" name="file" value="{{file.depot_path|escape}}">

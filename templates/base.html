@@ -10,7 +10,7 @@
       {%if patch%}{{patch.filename}} -{%endif%}
     {%endblock%}
     {%block title2%}
-      {%if issue%}Issue {{issue.key.id}}: {{issue.subject}} -{%endif%}
+      {%if issue%}Issue {{issue.id}}: {{issue.subject}} -{%endif%}
     {%endblock%}
     Code Review
   </title>
@@ -34,8 +34,8 @@
    {%endif%}
    {%if issue%}
      <link rel="alternate" type="application/atom+xml"
- 	    title="Issue {{issue.key.id}}"
- 	    href="{%url django.contrib.syndication.views.feed url="issue"%}/{{issue.key.id}}" />
+ 	    title="Issue {{issue.id}}"
+ 	    href="{%url django.contrib.syndication.views.feed url="issue"%}/{{issue.id}}" />
    {%endif%} 
    <!-- head block to insert js/css for forms processing -->
    {%block head%}{%endblock%}
@@ -51,7 +51,7 @@ document.onclick = M_clickCommon;
 var media_url = "{{media_url}}";
 var base_url = "{%url codereview.views.index%}";
 {%if issue%}
-var publish_link = "{%url codereview.views.publish issue.key.id%}";
+var publish_link = "{%url codereview.views.publish issue.id%}";
 {%endif%}
 // -->
 </script>
@@ -238,7 +238,7 @@ var publish_link = "{%url codereview.views.publish issue.key.id%}";
   {%endif%}
   {%if issue%}
   |
-  <a href="{%url django.contrib.syndication.views.feed url="issue"%}/{{issue.key.id}}">This issue</a>
+  <a href="{%url django.contrib.syndication.views.feed url="issue"%}/{{issue.id}}">This issue</a>
   {%endif%} 
   </div>
   <div style="margin-top: .3em;">This is Rietveld <a href='http://code.google.com/p/rietveld/updates/list'>{%include "live_revision.html"%}</a></div>
