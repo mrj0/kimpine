@@ -20,6 +20,7 @@ import md5
 import os
 import re
 import time
+from collections import namedtuple
 
 # AppEngine imports
 from google.appengine.ext import db
@@ -30,32 +31,74 @@ import patching
 
 # Django imports
 from django.core.cache import cache
+from django.db import models
+from django.contrib.auth.models import User
 
 
 CONTEXT_CHOICES = (3, 10, 25, 50, 75, 100)
+
+### Custom Fields
+
+class MultiEmailField(models.TextField):
+
+  __metaclass__ = models.SubfieldBase
+
+  def get_db_prep_value(self, value):
+    if value is None:
+      return value
+    return ','.join(value)
+
+  def to_python(self, value):
+    if type(value) == list:
+      return value
+    if value is None:
+      return value
+    if value == '':
+      return []
+    return value.split(',')
+
+class MultiForeignKeyField(models.TextField):
+
+  __metaclass__ = models.SubfieldBase
+
+  def __init__(self, model, *args, **kwargs):
+    self.model = model
+    super(MultiForeignKeyField, self).__init__(*args, **kwargs)
+
+  def get_db_prep_value(self, value):
+    if value is None:
+      return value
+    return ','.join(str(obj.id) for obj in value)
+
+  def to_python(self, value):
+    if type(value) == list:
+      return value
+    if value is None:
+      return value
+    return (self.model.get(id=int(id)) for id in value.split(','))
 
 
 ### Issues, PatchSets, Patches, Contents, Comments, Messages ###
 
 
-class Issue(db.Model):
+class Issue(models.Model):
   """The major top-level entity.
 
   It has one or more PatchSets as its descendants.
   """
 
-  subject = db.StringProperty(required=True)
-  description = db.TextProperty()
-  base = db.StringProperty()
-  local_base = db.BooleanProperty(default=False)
-  owner = db.UserProperty(auto_current_user_add=True, required=True)
-  created = db.DateTimeProperty(auto_now_add=True)
-  modified = db.DateTimeProperty(auto_now=True)
-  reviewers = db.ListProperty(db.Email)
-  cc = db.ListProperty(db.Email)
-  closed = db.BooleanProperty(default=False)
-  private = db.BooleanProperty(default=False)
-  n_comments = db.IntegerProperty()
+  subject = models.CharField(max_length=100)
+  description = models.TextField(blank=True, default='')
+  base = models.CharField(max_length=500, blank=True, null=True)
+  local_base = models.BooleanField(default=False)
+  owner = models.ForeignKey(User)
+  created = models.DateTimeField(auto_now_add=True)
+  modified = models.DateTimeField(auto_now=True)
+  reviewers = MultiEmailField(blank=True, default=[])
+  cc = MultiEmailField(blank=True, default=[])
+  closed = models.BooleanField(default=False)
+  private = models.BooleanField(default=False)
+  n_comments = models.IntegerField()
 
   _is_starred = None
 
@@ -63,11 +106,14 @@ class Issue(db.Model):
     """Whether the current user has this issue starred."""
     if self._is_starred is not None:
       return self._is_starred
-    try:
-      account = Account.objects.get(user=user.id) #TODO(kle): when this is a Foreign key, refactor
-    except Account.DoesNotExist:
-      account = None
-    self._is_starred = account is not None and self.id in account.stars
+    if user.is_anonymous():
+      self._is_starred = False
+    else:
+      try:
+        account = Account.objects.get(user=user) #TODO(kle): remove id after refactor
+        self._is_starred = self.id in account.stars
+      except Account.DoesNotExist:
+        self._is_starred = False
     return self._is_starred
 
   def user_can_edit(self, user):
@@ -110,10 +156,13 @@ class Issue(db.Model):
     The value is expensive to compute, so it is cached.
     """
     if self._num_drafts is None:
-      try:
-        account = Account.objects.get(user=user.id) #TODO(kle): remove .id when user is a foreign key
-      except Account.DoesNotExist:
+      if user.is_anonymous():
         account = None
+      else:
+        try:
+          account = Account.objects.get(user=user)
+        except Account.DoesNotExist:
+          account = None
       if account is None:
         self._num_drafts = 0
       else:
@@ -555,7 +604,7 @@ class Account(db.Model):
       account = cls.objects.get(email=user.email)
     except cls.DoesNotExist:
       nickname = cls.create_nickname_for_user(user)
-      account = cls(user=user, email=email, nickname=nickname, fresh=True)
+      account = cls(user=user, email=user.email, nickname=nickname, fresh=True)
       account.save()
     return account
 

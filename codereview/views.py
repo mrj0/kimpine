@@ -1198,6 +1198,7 @@ def upload(request):
   """
   if request.user.is_anonymous():
     return HttpResponse('Login required', status=401)
+  account = models.Account.get_account_for_user(request.user) #autocreate account TODO(kle): refactor
   # Check against old upload.py usage.
   if request.POST.get('num_parts') > 1:
     return HttpResponse('Upload.py is too old, get the latest version.',
@@ -1468,8 +1469,8 @@ def _get_data_url(form):
   """
   cleaned_data = form.cleaned_data
 
-  data = cleaned_data['data']
-  url = cleaned_data['url']
+  data = cleaned_data.get('data') # falls back to None
+  url = cleaned_data.get('url') # falls back to None
   separate_patches = cleaned_data['separate_patches']
   if not (data or url or separate_patches):
     form.errors['data'] = ['You must specify a URL or upload a file (< 1 MB).']
