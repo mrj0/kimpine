@@ -815,7 +815,7 @@ def patch_filename_required(func):
                      {'issue': request.issue,
                       'patchset': request.patchset,
                       'patch': None,
-                      'patchsets': request.issue.patchset_set,
+                      'patchsets': request.issue.patchset_set.all(),
                       'filename': patch_filename})
     patch.patchset = request.patchset
     request.patch = patch
@@ -1257,12 +1257,12 @@ def upload(request):
 
         content_entities = []
         new_content_entities = []
-        patches = list(patchset.patch_set)
+        patches = list(patchset.patch_set.all())
         existing_patches = {}
-        patchsets = list(issue.patchset_set)
+        patchsets = list(issue.patchset_set.all())
         if len(patchsets) > 1:
           # Only check the last uploaded patchset for speed.
-          last_patch_set = patchsets[-2].patch_set
+          last_patch_set = patchsets[-2].patch_set.all()
           patchsets = None  # Reduce memory usage.
           for opatch in last_patch_set:
             if opatch.content:
@@ -1876,8 +1876,8 @@ def edit(request):
   issue.reviewers = reviewers
   issue.cc = cc
   if base_changed:
-    for patchset in issue.patchset_set:
-      _delete_cached_contents(list(patchset.patch_set))
+    for patchset in issue.patchset_set.all():
+      _delete_cached_contents(list(patchset.patch_set.all()))
   issue.save()
   if issue.closed == was_closed:
     message = 'Edited'
@@ -1940,7 +1940,7 @@ def delete_patchset(request):
   patchsets_after = issue.patchset_set.filter(created__lt=ps_delete.created)
   patches = []
   for patchset in patchsets_after:
-    for patch in patchset.patch_set:
+    for patch in patchset.patch_set.all():
       if patch.delta_calculated:
         if ps_id in patch.delta:
           patches.append(patch)
@@ -2902,7 +2902,7 @@ def _get_draft_comments(request, issue, preview=False):
                                                 author=request.user,
                                                 draft=True)
     if ps_comments:
-      patches = dict((p.id, p) for p in patchset.patch_set)
+      patches = dict((p.id, p) for p in patchset.patch_set.all())
       for p in patches.itervalues():
         p.patchset = patchset
       for c in ps_comments:

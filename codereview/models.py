@@ -21,6 +21,7 @@ import os
 import re
 import time
 from collections import namedtuple
+import base64
 
 # AppEngine imports
 from google.appengine.ext import db
@@ -38,6 +39,23 @@ from django.contrib.auth.models import User
 CONTEXT_CHOICES = (3, 10, 25, 50, 75, 100)
 
 ### Custom Fields
+
+class BlobField(models.TextField):
+
+    __metaclass__ = models.SubfieldBase
+
+    def get_db_prep_value(self, value):
+        if value is None:
+            return value
+        return base64.encodestring(value)
+
+    def to_python(self, value):
+        if value is None:
+            return value
+        if isinstance(value, str):
+            return value
+        else:
+            return str(base64.decodestring(value))
 
 class MultiEmailField(models.TextField):
 
@@ -173,19 +191,19 @@ class Issue(models.Model):
     return self._num_drafts
 
 
-class PatchSet(db.Model):
+class PatchSet(models.Model):
   """A set of patchset uploaded together.
 
   This is a descendant of an Issue and has Patches as descendants.
   """
 
-  issue = db.ReferenceProperty(Issue)  # == parent
-  message = db.StringProperty()
-  data = db.BlobProperty()
-  url = db.LinkProperty()
-  created = db.DateTimeProperty(auto_now_add=True)
-  modified = db.DateTimeProperty(auto_now=True)
-  n_comments = db.IntegerProperty(default=0)
+  issue = models.ForeignKey(Issue)
+  message = models.CharField(max_length=500, default='')
+  data = BlobField(null=True, blank=True)
+  url = models.URLField(null=True, blank=True)
+  created = models.DateTimeField(auto_now_add=True)
+  modified = models.DateTimeField(auto_now=True)
+  n_comments = models.IntegerField(default=0)
 
   def update_comment_count(self, n):
     """Increment the n_comments property by n."""

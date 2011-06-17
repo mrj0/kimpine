@@ -158,7 +158,7 @@ class OneIssueFeed(BaseFeed):
     return 'Code review - Issue %d: %s' % (obj.id,obj.subject)
 
   def items(self, obj):
-    all = list(obj.patchset_set) + list(obj.message_set)
+    all = list(obj.patchset_set.all()) + list(obj.message_set.all())
     all.sort(key=self.item_pubdate)
     return all
 
