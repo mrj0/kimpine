@@ -1019,7 +1019,7 @@ def starred(request):
   if not stars:
     issues = []
   else:
-    issues = [issue for issue in models.Issue.objects.filter(id__in=stars)
+    issues = [issue for issue in models.Issue.objects.filter(id__in=[i.id for i in stars])
                     if _can_view_issue(request.user, issue)]
     _load_users_for_issues(issues)
     _optimize_draft_counts(request.user, issues)
@@ -2935,9 +2935,8 @@ def star(request):
   account.user_has_selected_nickname()  # This will preserve account.fresh.
   if account.stars is None:
     account.stars = []
-  id = request.issue.id
-  if id not in account.stars:
-    account.stars.append(id)
+  if request.issue not in account.stars:
+    account.stars.append(request.issue)
     account.save()
   return respond(request, 'issue_star.html', {'issue': request.issue})
 
@@ -2952,9 +2951,8 @@ def unstar(request):
   account.user_has_selected_nickname()  # This will preserve account.fresh.
   if account.stars is None:
     account.stars = []
-  id = request.issue.id
-  if id in account.stars:
-    account.stars[:] = [i for i in account.stars if i != id]
+  if request.issue in account.stars:
+    account.stars.remove(request.issue)
     account.save()
   return respond(request, 'issue_star.html', {'issue': request.issue})
 

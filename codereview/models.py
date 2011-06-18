@@ -23,9 +23,6 @@ import time
 from collections import namedtuple
 import base64
 
-# AppEngine imports
-from google.appengine.ext import db
-
 # Local imports
 import engine
 import patching
@@ -112,7 +109,7 @@ class Issue(models.Model):
     else:
       try:
         account = Account.objects.get(user=user) #TODO(kle): remove id after refactor
-        self._is_starred = self.id in account.stars
+        self._is_starred = self in account.stars
       except Account.DoesNotExist:
         self._is_starred = False
     return self._is_starred
@@ -414,12 +411,8 @@ class Patch(models.Model):
     Raises:
       engine.FetchError: If there was a problem fetching the old content.
     """
-    try:
-      if self.patched_content is not None:
-        return self.patched_content
-    except db.Error:
-      # This may happen when a Content entity was deleted behind our back.
-      self.patched_content = None
+    if self.patched_content is not None:
+      return self.patched_content
 
     old_lines = self.get_content().text.splitlines(True)
     logging.info('Creating patched_content for %s', self.filename)
@@ -427,7 +420,7 @@ class Patch(models.Model):
     new_lines = []
     for tag, old, new in patching.PatchChunks(old_lines, chunks):
       new_lines.extend(new)
-    text = db.Text(''.join(new_lines))
+    text = unicode(''.join(new_lines))
     patched_content = Content(text=text)
     patched_content.save()
     self.patched_content = patched_content
@@ -503,7 +496,7 @@ class Comment(models.Model):
 ### Accounts ###
 
 
-class Account(db.Model):
+class Account(models.Model):
   """Maps a user or email address to a user-selected nickname, and more.
 
   Nicknames do not have to be unique.
@@ -521,29 +514,19 @@ class Account(db.Model):
   starred issues we'd have to think of a different approach.)
   """
 
-  user = db.UserProperty(auto_current_user_add=True, required=True)
-  email = db.EmailProperty(required=True)  # key == <email>
-  nickname = db.StringProperty(required=True)
-  default_context = db.IntegerProperty(default=engine.DEFAULT_CONTEXT,
-                                       choices=CONTEXT_CHOICES)
-  default_column_width = db.IntegerProperty(default=engine.DEFAULT_COLUMN_WIDTH)
-  created = db.DateTimeProperty(auto_now_add=True)
-  modified = db.DateTimeProperty(auto_now=True)
-  stars = db.ListProperty(int)  # Issue ids of all starred issues
-  fresh = db.BooleanProperty()
-  uploadpy_hint = db.BooleanProperty(default=True)
-  notify_by_email = db.BooleanProperty(default=True)
-  notify_by_chat = db.BooleanProperty(default=False)
-
-  lower_email = db.StringProperty()
-  lower_nickname = db.StringProperty()
-  xsrf_secret = db.BlobProperty()
-
-  # Note that this doesn't get called when doing multi-entity puts.
-  def save(self):
-    self.lower_email = str(self.email).lower()
-    self.lower_nickname = self.nickname.lower()
-    super(Account, self).save()
+  user = models.ForeignKey(User)
+  email = models.EmailField()
+  nickname = models.CharField(max_length=50)
+  default_context = models.IntegerField(default=engine.DEFAULT_CONTEXT,
+                                        choices=[(x,x) for x in CONTEXT_CHOICES])
+  default_column_width = models.IntegerField(default=engine.DEFAULT_COLUMN_WIDTH)
+  created = models.DateTimeField(auto_now_add=True)
+  modified = models.DateTimeField(auto_now=True)
+  stars = MultiForeignKeyField(Issue)  # Issue ids of all starred issues
+  fresh = models.BooleanField()
+  uploadpy_hint = models.BooleanField(default=True)
+  notify_by_email = models.BooleanField(default=True)
+  xsrf_secret = models.TextField(null=True, blank=True)
 
   @classmethod
   def get_account_for_user(cls, user):
@@ -589,14 +572,6 @@ class Account(db.Model):
   def get_accounts_for_emails(cls, emails):
     """Get the Accounts for each of a list of email addresses."""
     return cls.objects.filter(email__in=emails)
-
-  @classmethod
-  def get_by_key_name(cls, key, **kwds):
-    """Override db.Model.get_by_key_name() to use cached value if possible."""
-    if not kwds and cls.current_user_account is not None:
-      if key == cls.current_user_account.key().name():
-        return cls.current_user_account
-    return super(Account, cls).get_by_key_name(key, **kwds)
 
   @classmethod
   def get_nickname_for_email(cls, email, default=None):
@@ -726,7 +701,7 @@ class Account(db.Model):
   def get_xsrf_token(self, offset=0):
     """Return an XSRF token for the current user."""
     if not self.xsrf_secret:
-      self.xsrf_secret = os.urandom(8)
+      self.xsrf_secret = base64.b64encode(os.urandom(8))
       self.save()
     m = md5.new(self.xsrf_secret)
     email_str = self.email.lower()
