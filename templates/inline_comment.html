@@ -44,7 +44,7 @@ class="{%if bucket.quoted%}comment-text-quoted{%else%}comment-text{%endif%}"
 <input type="hidden" name="file" value="{{file.depot_path|escape}}">
 <input type="hidden" name="lineno" value="{{lineno}}">
 <input type="hidden" name="oldtext" value="{{c.text}}">
-{%if c.message_id%}<input type="hidden" name="message_id" value="{{c.message_id}}">{%endif%}
+{%if c.id%}<input type="hidden" name="comment_id" value="{{c.id}}">{%endif%}
 <textarea name="text" cols="60" rows="5">{{c.text}}</textarea><br>
 <input type="submit" name="save" value="Save" onclick="return M_submitInlineComment(this.form, {{forloop.counter0}}, {{lineno}}, '{{side}}')">
 <input type="reset" name="cancel" value="Cancel" onclick="M_resetAndHideInlineComment(this.form, {{forloop.counter0}}, {{lineno}}, '{{side}}')">

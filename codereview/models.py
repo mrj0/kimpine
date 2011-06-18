@@ -439,21 +439,22 @@ class Patch(models.Model):
     """Returns True iff the base file is not available."""
     return self.content and self.content.file_too_large
 
+Bucket = namedtuple('Bucket', ['text', 'quoted'])
 
-class Comment(db.Model):
+class Comment(models.Model):
   """A Comment for a specific line of a specific file.
 
   This is a descendant of a Patch.
   """
 
-  patch = db.ReferenceProperty(Patch)  # == parent
-  message_id = db.StringProperty()  # == key_name
-  author = db.UserProperty(auto_current_user_add=True)
-  date = db.DateTimeProperty(auto_now=True)
-  lineno = db.IntegerProperty()
-  text = db.TextProperty()
-  left = db.BooleanProperty()
-  draft = db.BooleanProperty(required=True, default=True)
+  patch = models.ForeignKey(Patch)  # == parent
+  author = models.ForeignKey(User)
+  date = models.DateTimeField(auto_now=True)
+  lineno = models.IntegerField()
+  text = models.TextField()
+  left = models.BooleanField()
+  draft = models.BooleanField(default=True)
+
 
   def complete(self, patch):
     """Set the shorttext and buckets attributes."""
@@ -497,20 +498,6 @@ class Comment(db.Model):
       if not bucket.quoted:
         self.shorttext = bucket.text.lstrip()[:50].rstrip()
         break
-
-
-class Bucket(db.Model):
-  """A 'Bucket' of text.
-
-  A comment may consist of multiple text buckets, some of which may be
-  collapsed by default (when they represent quoted text).
-
-  NOTE: This entity is never written to the database.  See Comment.complete().
-  """
-  # TODO(guido): Flesh this out.
-
-  text = db.TextProperty()
-  quoted = db.BooleanProperty()
 
 
 ### Accounts ###

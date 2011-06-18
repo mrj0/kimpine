@@ -81,9 +81,9 @@
 
     {%for message in messages%}
       <div class="message {%if message.approval%}approval{%endif%}"
-           id="msg-{{message.message_id}}"
+           id="msg-{{message.id}}"
            name="{{forloop.counter0}}">
-        <a name="msg-{{message.message_id}}"></a>
+        <a name="msg-{{message.id}}"></a>
         <div class="header">
           <table border="0" width="100%" cellspacing="0" cellpadding="0">
             <tr class="comment_title"

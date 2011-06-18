@@ -2547,18 +2547,13 @@ def _inline_draft(request):
   assert patch  # XXX
   text = request.POST.get('text')
   lineno = int(request.POST['lineno'])
-  message_id = request.POST.get('message_id')
+  comment_id = request.POST.get('comment_id')
   comment = None
-  if message_id:
+  if comment_id:
     try:
-      comment = models.Comment.objects.get(message_id=message_id, patch=patch)
+      comment = models.Comment.objects.get(id=comment_id, patch=patch)
     except models.Comment.DoesNotExist:
       comment = None
-    if comment is None or not comment.draft or comment.author != request.user:
-      message_id = None
-  if not message_id:
-    # Prefix with 'z' to avoid key names starting with digits.
-    message_id = 'z' + binascii.hexlify(_random_bytes(16))
 
   if not text.rstrip():
     if comment is not None:
@@ -2569,8 +2564,7 @@ def _inline_draft(request):
       account.update_drafts(issue)
   else:
     if comment is None:
-      comment = models.Comment(message_id=message_id,
-                               patch=patch,
+      comment = models.Comment(patch=patch,
                                author=request.user,
                                lineno=lineno,
                                left=left,
