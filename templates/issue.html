@@ -59,35 +59,6 @@
 {%endfor%}
 
 
-{%ifequal user issue.owner%}
-  {%if not issue.local_base%}
-    <h3>
-      <a id="add-pointer"
-         href="javascript:M_toggleSection('add')"
-         class="toggled-section">
-        Add Another Patch Set
-      </a>
-    </h3>
-
-    <form id="add" style="{%if not form.errors%}display:none{%endif%}"
-          action="{%url codereview.views.add issue.id%}" method="post"
-          enctype="multipart/form-data">
-      <input type="hidden" name="xsrf_token" value="{{xsrf_token}}">
-      <table>
-        {{form}}
-        <tr>
-          <td><input type="submit" value="Add Patch Set" /></td>
-          <td>
-            You can also add a patch set to this issue using
-            <code>upload.py -i {{issue.id}}</code>
-          </td>
-        </tr>
-      </table>
-    </form>
-  {%endif%}
-{%endifequal%}
-
-
 {%if messages%}
   <h3>
     <a id="messages-pointer"

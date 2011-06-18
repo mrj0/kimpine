@@ -2,7 +2,6 @@
 
 {%block mainmenu%}
   <a href="{%url codereview.views.index%}" class="active">Issues</a>
-  <a href="{%url codereview.views.repos%}">Repositories</a>
   <a href="{%url codereview.views.search%}">Search</a>
 {%endblock%}
 
@@ -94,9 +93,6 @@
           <div><b>CC:</b><br/>
             {%nicknames issue.cc%}
           </div>
-          <div><b>Base URL:</b><br/>
-            {{issue.base}}
-          </div>
           <div><b>Visibility:</b><br/>
             {%if issue.private%}
                 Private. Only viewable by reviewers and CCs.
@@ -123,7 +119,6 @@
       Created {{issue.created|timesince}} ago by {%nickname issue.owner%}<br/>
       Modified {{issue.modified|timesince}} ago<br/>
       Reviewers: {%nicknames issue.reviewers%}<br/>
-      Base URL: {{issue.base}}<br/>
       Comments: {{issue.num_comments}}
       {%if issue|num_issue_drafts:user%} <span style="color: red;">+
 	{{issue|num_issue_drafts:user}} drafts</span>{%endif%}

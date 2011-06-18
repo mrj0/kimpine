@@ -125,10 +125,6 @@ class IssueBaseForm(forms.Form):
   description = forms.CharField(required=False,
                                 max_length=10000,
                                 widget=forms.Textarea(attrs={'cols': 60}))
-  branch = forms.ChoiceField(required=False, label='Base URL')
-  base = forms.CharField(required=False,
-                         max_length=1000,
-                         widget=forms.TextInput(attrs={'size': 60}))
   reviewers = forms.CharField(required=False,
                               max_length=1000,
                               widget=AccountInput(attrs={'size': 60}))
@@ -144,37 +140,6 @@ class IssueBaseForm(forms.Form):
     for field in self.fields.itervalues():
       if type(field.widget) == AccountInput:
         field.widget.request = self.request
-
-  def set_branch_choices(self, base=None):
-    branches = models.Branch.objects.order_by('repo','category','name')
-    bound_field = self['branch']
-    choices = []
-    default = None
-    for b in branches:
-      if not b.repo_name:
-        b.repo_name = b.repo.name
-        b.save()
-      pair = (b.id, '%s - %s - %s' % (b.repo_name, b.category, b.name))
-      choices.append(pair)
-      if default is None and (base is None or b.url == base):
-        default = b.id
-    choices.sort(key=lambda pair: pair[1].lower())
-    choices.insert(0, ('', '[See Base]'))
-    bound_field.field.choices = choices
-    if default is not None:
-      self.initial['branch'] = default
-
-  def get_base(self):
-    base = self.cleaned_data.get('base')
-    if not base:
-      key = self.cleaned_data['branch']
-      if key:
-        branch = _first_or_none(models.Branch.objects.filter(id=key))
-        if branch is not None:
-          base = branch.url
-    if not base:
-      self.errors['base'] = ['You must specify a base']
-    return base or None
 
 
 class NewForm(IssueBaseForm):
@@ -211,7 +176,6 @@ class UploadForm(forms.Form):
   description = forms.CharField(max_length=10000, required=False)
   content_upload = forms.BooleanField(required=False)
   separate_patches = forms.BooleanField(required=False)
-  base = forms.CharField(max_length=2000, required=False)
   data = forms.FileField(required=False)
   issue = forms.IntegerField(required=False)
   description = forms.CharField(max_length=10000, required=False)
@@ -220,15 +184,6 @@ class UploadForm(forms.Form):
   private = forms.BooleanField(required=False, initial=False)
   send_mail = forms.BooleanField(required=False)
   base_hashes = forms.CharField(required=False)
-
-  def clean_base(self):
-    base = self.cleaned_data.get('base')
-    if not base and not self.cleaned_data.get('content_upload', False):
-      raise forms.ValidationError, 'Base URL is required.'
-    return self.cleaned_data.get('base')
-
-  def get_base(self):
-    return self.cleaned_data.get('base')
 
 
 class UploadContentForm(forms.Form):
@@ -259,11 +214,6 @@ class UploadPatchForm(forms.Form):
     return self.files['data'].read()
 
 
-class EditForm(IssueBaseForm):
-
-  closed = forms.BooleanField(required=False)
-
-
 class EditLocalBaseForm(forms.Form):
   subject = forms.CharField(max_length=100,
                             widget=forms.TextInput(attrs={'size': 60}))
@@ -286,24 +236,6 @@ class EditLocalBaseForm(forms.Form):
     for field in self.fields.itervalues():
       if type(field.widget) == AccountInput:
         field.widget.request = self.request
-
-  def get_base(self):
-    return None
-
-
-class RepoForm(forms.ModelForm):
-
-  class Meta:
-    model = models.Repository
-    exclude = ['owner']
-
-
-class BranchForm(forms.ModelForm):
-
-  class Meta:
-    model = models.Branch
-    exclude = ['owner', 'repo_name']
-
 
 class PublishForm(forms.Form):
 
@@ -438,7 +370,6 @@ class SearchForm(forms.Form):
   reviewer = forms.CharField(required=False,
                               max_length=1000,
                               widget=AccountInput(attrs={'size': 60, 'multiple': False}))
-  base = forms.CharField(required=False, max_length=550)
   private = forms.NullBooleanField(required=False)
 
   def __init__(self, *args, **kwargs):
@@ -1160,11 +1091,9 @@ def new(request):
   """
   if request.method != 'POST':
     form = NewForm(request=request)
-    form.set_branch_choices()
     return respond(request, 'new.html', {'form': form})
 
   form = NewForm(request.POST, request.FILES, request=request)
-  form.set_branch_choices()
   issue = _make_new(request, form)
   if issue is None:
     return respond(request, 'new.html', {'form': form})
@@ -1214,9 +1143,6 @@ def upload(request):
       if issue is None:
         form.errors['issue'] = ['No issue exists with that id (%s)' %
                                 issue_id]
-      elif issue.local_base and not form.cleaned_data.get('content_upload'):
-        form.errors['issue'] = ['Base files upload required for that issue.']
-        issue = None
       else:
         if request.user != issue.owner:
           form.errors['user'] = ['You (%s) don\'t own this issue (%s)' %
@@ -1245,7 +1171,6 @@ def upload(request):
       msg +="\n%d" % patchset.id
       if form.cleaned_data.get('content_upload'):
         # Extend the response: additional lines are the expected filenames.
-        issue.local_base = True
         issue.save()
 
         base_hashes = {}
@@ -1412,15 +1337,10 @@ def _make_new(request, form):
   if not form.is_valid():
     return None
 
-  base = form.get_base()
-  if base is None:
-    return None
-
   @transaction.commit_on_success
   def txn():
     issue = models.Issue(subject=form.cleaned_data['subject'],
                          description=form.cleaned_data['description'],
-                         base=base,
                          reviewers=reviewers,
                          owner=request.user,
                          cc=cc,
@@ -1823,12 +1743,8 @@ def account(request):
 def edit(request):
   """/<issue>/edit - Edit an issue."""
   issue = request.issue
-  base = issue.base
 
-  if issue.local_base:
-    form_cls = EditLocalBaseForm
-  else:
-    form_cls = EditForm
+  form_cls = EditLocalBaseForm
 
   if request.method != 'POST':
     reviewers = [models.Account.get_nickname_for_email(reviewer,
@@ -1838,29 +1754,21 @@ def edit(request):
            for cc in issue.cc]
     form = form_cls(initial={'subject': issue.subject,
                              'description': issue.description,
-                             'base': base,
                              'reviewers': ', '.join(reviewers),
                              'cc': ', '.join(ccs),
                              'closed': issue.closed,
                              'private': issue.private,
                              },
                     request=request)
-    if not issue.local_base:
-      form.set_branch_choices(base)
     return respond(request, 'edit.html', {'issue': issue, 'form': form})
 
   form = form_cls(request.POST, request=request)
-  if not issue.local_base:
-    form.set_branch_choices()
 
   if form.is_valid():
     reviewers = _get_emails(form, 'reviewers')
 
   if form.is_valid():
     cc = _get_emails(form, 'cc')
-
-  if form.is_valid() and not issue.local_base:
-    base = form.get_base()
 
   if not form.is_valid():
     return respond(request, 'edit.html', {'issue': issue, 'form': form})
@@ -1871,13 +1779,8 @@ def edit(request):
   issue.description = cleaned_data['description']
   issue.closed = cleaned_data['closed']
   issue.private = cleaned_data.get('private', False)
-  base_changed = (issue.base != base)
-  issue.base = base
   issue.reviewers = reviewers
   issue.cc = cc
-  if base_changed:
-    for patchset in issue.patchset_set.all():
-      _delete_cached_contents(list(patchset.patch_set.all()))
   issue.save()
   if issue.closed == was_closed:
     message = 'Edited'
@@ -1887,31 +1790,6 @@ def edit(request):
     message = 'Reopened'
 
   return HttpResponseRedirect(reverse(show, args=[issue.id]))
-
-
-def _delete_cached_contents(patch_set):
-  """Transactional helper for edit() to delete cached contents."""
-  # TODO(guido): No need to do this in a transaction.
-  patches = []
-  contents = []
-  for patch in patch_set:
-    content = patch.content
-    patched_content = patch.patched_content
-    if content is not None:
-      contents.append(content)
-    if patched_content is not None:
-      contents.append(patched_content)
-    patch.content = None
-    patch.patched_content = None
-    patches.append(patch)
-  if contents:
-    logging.info("Deleting %d contents", len(contents))
-    for content in contents:
-      content.delete()
-  if patches:
-    logging.info("Updating %d patches", len(patches))
-    for patch in patches:
-      patch.save()
 
 
 @post_required
@@ -2131,7 +2009,6 @@ def _issue_as_dict(issue, messages, request=None):
     'description': issue.description,
     'subject': issue.subject,
     'issue': issue.id,
-    'base_url': issue.base,
     'private': issue.private,
   }
   if messages:
@@ -2771,7 +2648,7 @@ def _get_mail_template(request, issue):
                                          sender=request.user.email).exists():
       template = 'mails/review.txt'
       files, patch = _get_affected_files(issue)
-      context.update({'files': files, 'patch': patch, 'base': issue.base})
+      context.update({'files': files, 'patch': patch})
   return template, context
 
 
@@ -3184,8 +3061,6 @@ def search(request):
     q.filter(reviewers=form.cleaned_data['reviewer'])
   if form.cleaned_data.get('private') != None:
     q.filter(private=form.cleaned_data['private'])
-  if form.cleaned_data.get('base'):
-    q.filter(base=form.cleaned_data['base'])
   # Update the cursor value in the result.
   if format == 'html':
     nav_params = dict(
@@ -3216,155 +3091,6 @@ def search(request):
     data['results'] = [_issue_as_dict(i, messages, request)
                       for i in filtered_results],
   return data
-
-
-### Repositories and Branches ###
-
-
-def repos(request):
-  """/repos - Show the list of known Subversion repositories."""
-  # Clean up garbage created by buggy edits
-  bad_branches = models.Branch.objects.filter(owner=None)
-  bad_branches.delete()
-  repo_map = {}
-  for repo in models.Repository.objects.all():
-    repo_map[str(repo.id)] = repo
-  branches = []
-  for branch in models.Branch.objects.order_by('repo','category','name'):
-    branch.repository = repo_map[str(branch._repo)]
-    branches.append(branch)
-  return respond(request, 'repos.html', {'branches': branches})
-
-
-@login_required
-@xsrf_required
-def repo_new(request):
-  """/repo_new - Create a new Subversion repository record."""
-  if request.method != 'POST':
-    form = RepoForm()
-    return respond(request, 'repo_new.html', {'form': form})
-  form = RepoForm(request.POST)
-  errors = form.errors
-  if not errors:
-    try:
-      repo = form.save(commit=False)
-    except ValueError, err:
-      errors['__all__'] = unicode(err)
-  if errors:
-    return respond(request, 'repo_new.html', {'form': form})
-  repo.save()
-  branch_url = repo.url
-  if not branch_url.endswith('/'):
-    branch_url += '/'
-  branch_url += 'trunk/'
-  branch = models.Branch(repo=repo, repo_name=repo.name, owner=request.user,
-                         category='*trunk*', name='Trunk',
-                         url=branch_url)
-  branch.save()
-  return HttpResponseRedirect(reverse(repos))
-
-
-SVN_ROOT = 'http://svn.python.org/view/*checkout*/python/'
-BRANCHES = [
-    # category, name, url suffix
-    ('*trunk*', 'Trunk', 'trunk/'),
-    ('branch', '2.5', 'branches/release25-maint/'),
-    ('branch', 'py3k', 'branches/py3k/'),
-    ]
-
-
-# TODO: Make this a POST request to avoid XSRF attacks.
-@admin_required
-def repo_init(request):
-  """/repo_init - Initialze the list of known Subversion repositories."""
-  python = _first_or_none(models.Repository.objects.filter(name='Python'))
-  if python is None:
-    python = models.Repository(name='Python', url=SVN_ROOT, owner=request.user)
-    python.save()
-    pybranches = []
-  else:
-    pybranches = models.Branch.objects.filter(repo=python)
-  for category, name, url in BRANCHES:
-    url = python.url + url
-    for br in pybranches:
-      if (br.category, br.name, br.url) == (category, name, url):
-        break
-    else:
-      br = models.Branch(repo=python, repo_name='Python', owner=request.user,
-                         category=category, name=name, url=url)
-      br.save()
-  return HttpResponseRedirect(reverse(repos))
-
-
-@login_required
-@xsrf_required
-def branch_new(request, repo_id):
-  """/branch_new/<repo> - Add a new Branch to a Repository record."""
-  repo = _get_or_none(models.Repository, repo_id)
-  if request.method != 'POST':
-    # XXX Use repo.id so that the default gets picked up
-    form = BranchForm(initial={'repo': repo.id,
-                               'url': repo.url,
-                               'category': 'branch',
-                               })
-    return respond(request, 'branch_new.html', {'form': form, 'repo': repo})
-  form = BranchForm(request.POST)
-  errors = form.errors
-  if not errors:
-    try:
-      branch = form.save(commit=False)
-    except ValueError, err:
-      errors['__all__'] = unicode(err)
-  if errors:
-    return respond(request, 'branch_new.html', {'form': form, 'repo': repo})
-  branch.repo_name = repo.name
-  branch.save()
-  return HttpResponseRedirect(reverse(repos))
-
-
-@login_required
-@xsrf_required
-def branch_edit(request, branch_id):
-  """/branch_edit/<branch> - Edit a Branch record."""
-  branch = _get_or_none(models.Branch, branch_id)
-  if branch.owner != request.user:
-    return HttpResponseForbidden('You do not own this branch')
-  if request.method != 'POST':
-    form = BranchForm(instance=branch)
-    return respond(request, 'branch_edit.html',
-                   {'branch': branch, 'form': form})
-
-  form = BranchForm(request.POST, instance=branch)
-  errors = form.errors
-  if not errors:
-    try:
-      branch = form.save(commit=False)
-    except ValueError, err:
-      errors['__all__'] = unicode(err)
-  if errors:
-    return respond(request, 'branch_edit.html',
-                   {'branch': branch, 'form': form})
-  branch.repo_name = branch.repo.name
-  branch.save()
-  return HttpResponseRedirect(reverse(repos))
-
-
-@post_required
-@login_required
-@xsrf_required
-def branch_delete(request, branch_id):
-  """/branch_delete/<branch> - Delete a Branch record."""
-  branch = _get_or_none(models.Branch, branch_id)
-  if branch.owner != request.user:
-    return HttpResponseForbidden('You do not own this branch')
-  repo = branch.repo
-  branch.delete()
-  num_branches = models.Branch.objects.filter(repo=repo).count()
-  if not num_branches:
-    # Even if we don't own the repository?  Yes, I think so!  Empty
-    # repositories have no representation on screen.
-    repo.delete()
-  return HttpResponseRedirect(reverse(repos))
 
 
 ### User Profiles ###

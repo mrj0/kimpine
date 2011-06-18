@@ -19,7 +19,6 @@ import re
 import cgi
 import difflib
 import logging
-import urlparse
 
 # Django imports
 from django.template import loader, RequestContext
@@ -28,7 +27,6 @@ from django.template import loader, RequestContext
 import models
 import patching
 import intra_region_diff
-import urlfetch
 
 
 class FetchError(Exception):
@@ -90,85 +88,6 @@ def ParsePatchSet(patchset):
     patches.append(models.Patch(patchset=patchset, text=ToText(text),
                                 filename=filename))
   return patches
-
-
-def FetchBase(base, patch):
-  """Fetch the content of the file to which the file is relative.
-
-  Args:
-    base: the base property of the Issue to which the Patch belongs.
-    patch: a models.Patch instance.
-
-  Returns:
-    A models.Content instance.
-
-  Raises:
-    FetchError: For any kind of problem fetching the content.
-  """
-  filename, lines = patch.filename, patch.lines
-  rev = patching.ParseRevision(lines)
-  if rev is not None:
-    if rev == 0:
-      # rev=0 means it's a new file.
-      return models.Content(text=u'')
-
-
-  url = _MakeUrl(base, filename, rev)
-  logging.info('Fetching %s', url)
-  try:
-    result = urlfetch.fetch(url)
-  except Exception, err:
-    msg = 'Error fetching %s: %s: %s' % (url, err.__class__.__name__, err)
-    logging.warn('FetchBase: %s', msg)
-    raise FetchError(msg)
-  if result.status_code != 200:
-    msg = 'Error fetching %s: HTTP status %s' % (url, result.status_code)
-    logging.warn('FetchBase: %s', msg)
-    raise FetchError(msg)
-  return models.Content(text=ToText(UnifyLinebreaks(result.content)))
-
-
-def _MakeUrl(base, filename, rev):
-  """Helper for FetchBase() to construct the URL to fetch.
-
-  Args:
-    base: The base property of the Issue to which the Patch belongs.
-    filename: The filename property of the Patch instance.
-    rev: Revision number, or None for head revision.
-
-  Returns:
-    A URL referring to the given revision of the file.
-  """
-  scheme, netloc, path, params, query, fragment = urlparse.urlparse(base)
-  if netloc.endswith(".googlecode.com"):
-    # Handle Google code repositories
-    if rev is None:
-      raise FetchError("Can't access googlecode.com without a revision")
-    if not path.startswith("/svn/"):
-      raise FetchError( "Malformed googlecode.com URL (%s)" % base)
-    path = path[5:]  # Strip "/svn/"
-    url = "%s://%s/svn-history/r%d/%s/%s" % (scheme, netloc, rev,
-                                             path, filename)
-    return url
-  elif netloc.endswith("sourceforge.net") and rev is not None:
-    if path.strip().endswith("/"):
-      path = path.strip()[:-1]
-    else:
-      path = path.strip()
-    splitted_path = path.split("/")
-    url = "%s://%s/%s/!svn/bc/%d/%s/%s" % (scheme, netloc,
-                                           "/".join(splitted_path[1:3]), rev,
-                                           "/".join(splitted_path[3:]),
-                                           filename)
-    return url
-  # Default for viewvc-based URLs (svn.python.org)
-  url = base
-  if not url.endswith('/'):
-    url += '/'
-  url += filename
-  if rev is not None:
-    url += '?rev=%s' % rev
-  return url
 
 
 DEFAULT_CONTEXT = 10

@@ -92,8 +92,6 @@ class Issue(models.Model):
 
   subject = models.CharField(max_length=100)
   description = models.TextField(blank=True, default='')
-  base = models.CharField(max_length=500, blank=True, null=True)
-  local_base = models.BooleanField(default=False)
   owner = models.ForeignKey(User)
   created = models.DateTimeField(auto_now_add=True)
   modified = models.DateTimeField(auto_now=True)
@@ -394,27 +392,16 @@ class Patch(models.Model):
     Raises:
       engine.FetchError: If there was a problem fetching it.
     """
-    try:
-      if self.content is not None:
-        if self.content.is_bad:
-          msg = 'Bad content. Try to upload again.'
-          logging.warn('Patch.get_content: %s', msg)
-          raise engine.FetchError(msg)
-        if self.content.is_uploaded and self.content.text == None:
-          msg = 'Upload in progress.'
-          logging.warn('Patch.get_content: %s', msg)
-          raise engine.FetchError(msg)
-        else:
-          return self.content
-    except db.Error:
-      # This may happen when a Content entity was deleted behind our back.
-      self.content = None
-
-    content = engine.FetchBase(self.patchset.issue.base, self)
-    content.save()
-    self.content = content
-    self.save()
-    return content
+    if self.content.is_bad:
+      msg = 'Bad content. Try to upload again.'
+      logging.warn('Patch.get_content: %s', msg)
+      raise engine.FetchError(msg)
+    if self.content.is_uploaded and self.content.text == None:
+      msg = 'Upload in progress.'
+      logging.warn('Patch.get_content: %s', msg)
+      raise engine.FetchError(msg)
+    else:
+      return self.content
 
   def get_patched_content(self):
     """Get self.patched_content, computing it if necessary.
@@ -524,34 +511,6 @@ class Bucket(db.Model):
 
   text = db.TextProperty()
   quoted = db.BooleanProperty()
-
-
-### Repositories and Branches ###
-
-
-class Repository(db.Model):
-  """A specific Subversion repository."""
-
-  name = db.StringProperty(required=True)
-  url = db.LinkProperty(required=True)
-  owner = db.UserProperty(auto_current_user_add=True)
-
-  def __str__(self):
-    return self.name
-
-
-class Branch(db.Model):
-  """A trunk, branch, or atag in a specific Subversion repository."""
-
-  repo = db.ReferenceProperty(Repository, required=True)
-  # Cache repo.name as repo_name, to speed up set_branch_choices()
-  # in views.IssueBaseForm.
-  repo_name = db.StringProperty()
-  category = db.StringProperty(required=True,
-                               choices=('*trunk*', 'branch', 'tag'))
-  name = db.StringProperty(required=True)
-  url = db.LinkProperty(required=True)
-  owner = db.UserProperty(auto_current_user_add=True)
 
 
 ### Accounts ###
