@@ -7,6 +7,8 @@ Before you are able to run this example you need to obtain a recent version
 of Rietveld. There are two ways to do this. Either set it up manually or
 use the Makefile in this directory.
 
+Requires: Django 1.3, Python 2.6+, South
+
 
 Using the Makefile
 ==================
@@ -39,6 +41,22 @@ to initialize the example database
 ./manage.py runserver 127.0.0.1:8000
 
 will run Rietveld in development mode.
+
+Creating a code review
+======================
+#. Run the server (./manage.py runserver)
+#. Make a change to a git repo (even this one! maybe just this file...). Leave the changes unstaged.
+#. Inside that repo ``path/to/kimpine/upload.py -s 127.0.0.1:8000``. If you want to include commits in your
+   codereview, just pass the same arguments you would give to ``git diff``. One common usage is
+   ``upload.py -s yourCodeReviewServer.com origin/master...``
+#. When prompted, provide your username/password and a subject line for your issue to be code reviewed.
+#. Navigate to the site (127.0.0.1:8000) and find your issue.
+#. Make comments in the diff, write a new message, etc.
+#. Back in your repository, make more changes to the repo and when you're ready, update the issue: 
+   ``upload.py -s 127.0.0.1:8000 -i your-issue-number`` (providing arguments for your diff, if you have more
+   than just unstaged changes).
+#. Navigate to your issue, check out the delta between your patchsets, make more comments, etc.
+#. Rinse, repeat.
 
 
 Production Deployment
