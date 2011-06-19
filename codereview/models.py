@@ -180,7 +180,6 @@ class PatchSet(models.Model):
   issue = models.ForeignKey(Issue)
   message = models.CharField(max_length=500, default='')
   data = models.TextField(null=True, blank=True)
-  url = models.URLField(null=True, blank=True)
   created = models.DateTimeField(auto_now_add=True)
   modified = models.DateTimeField(auto_now=True)
   n_comments = models.IntegerField(default=0)

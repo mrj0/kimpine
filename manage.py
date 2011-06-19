@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-import gae2django
-# Use gae2django.install(server_software='Dev') to enable a link to the
-# admin frontend at the top of each page. By default this link is hidden.
-gae2django.install(server_software='Django')
-
 from django.core.management import execute_manager
 try:
     import settings # Assumed to be in the same directory.

@@ -56,18 +56,11 @@ import models
 import engine
 import library
 import patching
-import urlfetch
 
 # Add our own template library.
 _library_name = __name__.rsplit('.', 1)[0] + '.library'
 if not django.template.libraries.get(_library_name, None):
   django.template.add_to_builtins(_library_name)
-
-
-### Constants ###
-
-
-IS_DEV = os.environ['SERVER_SOFTWARE'].startswith('Dev')  # Development server
 
 
 ### Form classes ###
@@ -145,9 +138,6 @@ class IssueBaseForm(forms.Form):
 class NewForm(IssueBaseForm):
 
   data = forms.FileField(required=False)
-  url = forms.URLField(required=False,
-                       max_length=2083,
-                       widget=forms.TextInput(attrs={'size': 60}))
   send_mail = forms.BooleanField(required=False, initial=True)
 
 
@@ -156,9 +146,6 @@ class AddForm(forms.Form):
   message = forms.CharField(max_length=100,
                             widget=forms.TextInput(attrs={'size': 60}))
   data = forms.FileField(required=False)
-  url = forms.URLField(required=False,
-                       max_length=2083,
-                       widget=forms.TextInput(attrs={'size': 60}))
   reviewers = forms.CharField(max_length=1000, required=False,
                               widget=AccountInput(attrs={'size': 60}))
   send_mail = forms.BooleanField(required=False, initial=True)
@@ -460,7 +447,6 @@ def respond(request, template, params=None):
   params['counter'] = counter
   params['user'] = request.user
   params['is_admin'] = request.user.is_superuser
-  params['is_dev'] = IS_DEV
   params['media_url'] = django_settings.MEDIA_URL
   full_path = request.get_full_path().encode('utf-8')
   if request.user.is_anonymous():
@@ -1327,7 +1313,7 @@ def _make_new(request, form):
   data_url = _get_data_url(form)
   if data_url is None:
     return None
-  data, url, separate_patches = data_url
+  data, separate_patches = data_url
 
   reviewers = _get_emails(form, 'reviewers')
   if not form.is_valid() or reviewers is None:
@@ -1348,7 +1334,7 @@ def _make_new(request, form):
                          n_comments=0)
     issue.save()
 
-    patchset = models.PatchSet(issue=issue, data=data, url=url)
+    patchset = models.PatchSet(issue=issue, data=data)
     patchset.save()
     issue.patchset = patchset
 
@@ -1363,7 +1349,7 @@ def _make_new(request, form):
   try:
     issue = txn()
   except EmptyPatchSet:
-    errkey = url and 'url' or 'data'
+    errkey = 'data'
     form.errors[errkey] = ['Patch set contains no recognizable patches']
     return None
 
@@ -1380,9 +1366,8 @@ def _get_data_url(form):
     form: Django form object.
 
   Returns:
-    3-tuple (data, url, separate_patches).
+    2-tuple (data, separate_patches).
       data: the diff content, if available.
-      url: the url of the diff, if given.
       separate_patches: True iff the patches will be uploaded separately for
         each file.
 
@@ -1390,35 +1375,19 @@ def _get_data_url(form):
   cleaned_data = form.cleaned_data
 
   data = cleaned_data.get('data') # falls back to None
-  url = cleaned_data.get('url') # falls back to None
   separate_patches = cleaned_data['separate_patches']
-  if not (data or url or separate_patches):
-    form.errors['data'] = ['You must specify a URL or upload a file (< 1 MB).']
+  if not (data or separate_patches):
+    form.errors['data'] = ['You must upload a file (< 1 MB).']
     return None
-  if data and url:
-    form.errors['data'] = ['You must specify either a URL or upload a file '
-                           'but not both.']
-    return None
-  if separate_patches and (data or url):
+  if separate_patches and data:
     form.errors['data'] = ['If the patches will be uploaded separately later, '
-                           'you can\'t send some data or a url.']
+                           'you can\'t send some data']
     return None
 
   if data is not None:
     data = engine.UnifyLinebreaks(data.read())
-    url = None
-  elif url:
-    try:
-      fetch_result = urlfetch.fetch(url)
-    except Exception, err:
-      form.errors['url'] = [str(err)]
-      return None
-    if fetch_result.status_code != 200:
-      form.errors['url'] = ['HTTP status code %s' % fetch_result.status_code]
-      return None
-    data = engine.UnifyLinebreaks(fetch_result.content)
 
-  return data, url, separate_patches
+  return data, separate_patches
 
 
 @post_required
@@ -1444,16 +1413,16 @@ def _add_patchset_from_form(request, issue, form, message_key='message',
   if request.user != issue.owner:
     # check already done at each call site, but check again for safety
     return None
-  data, url, separate_patches = data_url
+  data, separate_patches = data_url
   message = form.cleaned_data[message_key]
-  patchset = models.PatchSet(issue=issue, message=message, data=data, url=url)
+  patchset = models.PatchSet(issue=issue, message=message, data=data)
   patchset.save()
 
   if not separate_patches:
     patches = engine.ParsePatchSet(patchset)
     if not patches:
       patchset.delete()
-      errkey = url and 'url' or 'data'
+      errkey = 'data'
       form.errors[errkey] = ['Patch set contains no recognizable patches']
       return None
     for patch in patches:
@@ -1866,8 +1835,7 @@ def mailissue(request):
   Used by upload.py.
   """
   if not request.issue.user_can_edit(request.user):
-    if not IS_DEV:
-      return HttpResponse('Login required', status=401)
+    return HttpResponse('Login required', status=401)
   issue = request.issue
   msg = _make_message(request, issue, '', '', True)
   msg.save()
@@ -1901,8 +1869,7 @@ def description(request):
     description = request.issue.description or ""
     return HttpResponse(description, content_type='text/plain')
   if not request.issue.user_can_edit(request.user):
-    if not IS_DEV:
-      return HttpResponse('Login required', status=401)
+    return HttpResponse('Login required', status=401)
   issue = request.issue
   issue.description = request.POST.get('description')
   issue.save()
@@ -1930,8 +1897,7 @@ def fields(request):
     return response
 
   if request.issue.owner != request.user:
-    if not IS_DEV:
-      return HttpResponse('Login required', status=401)
+    return HttpResponse('Login required', status=401)
   fields = simplejson.loads(request.POST.get('fields'))
   issue = request.issue
   if 'description' in fields:
@@ -2033,7 +1999,6 @@ def _patchset_as_dict(patchset, request=None):
     'owner': library.get_nickname(patchset.issue.owner, request, True),
     'owner_email': patchset.issue.owner.email,
     'message': patchset.message,
-    'url': patchset.url,
     'created': str(patchset.created),
     'modified': str(patchset.modified),
     'num_comments': patchset.num_comments,
