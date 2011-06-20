@@ -335,15 +335,12 @@ class SearchForm(forms.Form):
         ('html', 'html'),
         ('json', 'json')),
       widget=forms.HiddenInput(attrs={'value': 'html'}))
-  keys_only = forms.BooleanField(
-      required=False,
-      widget=forms.HiddenInput(attrs={'value': 'False'}))
   with_messages = forms.BooleanField(
       required=False,
       widget=forms.HiddenInput(attrs={'value': 'False'}))
-  cursor = forms.CharField(
-      required=False,
-      widget=forms.HiddenInput(attrs={'value': ''}))
+  #cursor = forms.CharField(
+  #    required=False,
+  #    widget=forms.HiddenInput(attrs={'value': ''}))
   limit = forms.IntegerField(
       required=False,
       min_value=1,
@@ -398,7 +395,7 @@ class SearchForm(forms.Form):
 
   def clean_reviewer(self):
     user = self._clean_accounts('reviewer')
-    if user.is_authenticated():
+    if user and user.is_authenticated():
       return user.email
 
 
@@ -930,11 +927,11 @@ def _paginate_issues_with_cursor(page_url,
   nav_parameters = {}
   if extra_nav_parameters:
     nav_parameters.update(extra_nav_parameters)
-  nav_parameters['cursor'] = query.cursor()
+  # nav_parameters['cursor'] = query.cursor() TODO(kle): implement db cursors
 
   params = {
     'limit': limit,
-    'cursor': nav_parameters['cursor'],
+    # 'cursor': nav_parameters['cursor'],
     'nexttext': 'Newer',
   }
   # Fetch one more to see if there should be a 'next' link. Do it in a separate
@@ -3003,13 +3000,10 @@ def search(request):
       return HttpResponseBadRequest('Invalid arguments',
           content_type='text/plain')
   logging.info('%s' % form.cleaned_data)
-  keys_only = form.cleaned_data['keys_only'] or False
   format = form.cleaned_data.get('format') or 'html'
-  if format == 'html':
-    keys_only = False
-  q = models.Issue.objects.filter(keys_only=keys_only)
   #if form.cleaned_data.get('cursor'):
   #  q.with_cursor(form.cleaned_data['cursor']) #TODO(kle):get this working at some point
+  q = models.Issue.objects.all()
   if form.cleaned_data.get('closed') != None:
     q.filter(closed=form.cleaned_data['closed'])
   if form.cleaned_data.get('owner'):
@@ -3031,22 +3025,14 @@ def search(request):
         extra_nav_parameters=nav_params)
 
   results = q[:form.cleaned_data['limit'] or 100]
-  form.cleaned_data['cursor'] = q.cursor()
-  if keys_only:
-    # There's not enough information to filter. The only thing that is leaked is
-    # the issue's key.
-    filtered_results = results
-  else:
-    filtered_results = [i for i in results if _can_view_issue(request.user, i)]
+  # form.cleaned_data['cursor'] = q.cursor()
+  filtered_results = [i for i in results if _can_view_issue(request.user, i)]
   data = {
-    'cursor': form.cleaned_data['cursor'],
+    #'cursor': form.cleaned_data['cursor'],
   }
-  if keys_only:
-    data['results'] = [i.id for i in filtered_results]
-  else:
-    messages = form.cleaned_data['with_messages']
-    data['results'] = [_issue_as_dict(i, messages, request)
-                      for i in filtered_results],
+  messages = form.cleaned_data['with_messages']
+  data['results'] = [_issue_as_dict(i, messages, request)
+                    for i in filtered_results],
   return data
 
 
