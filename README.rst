@@ -3,11 +3,7 @@ Description
 This examples shows how to run Rietveld - the code review tool available
 at http://codereview.appspot.com/.
 
-Before you are able to run this example you need to obtain a recent version
-of Rietveld. There are two ways to do this. Either set it up manually or
-use the Makefile in this directory.
-
-Requires: Django 1.3, Python 2.6+, South
+Requires: Django 1.3, Python 2.6+, South_
 
 
 Using the Makefile
@@ -22,9 +18,9 @@ Just run::
 This will fetch a recent Django and Rietveld's sources directly from their
 Subversion repositories. When it's finished run::
 
-    ./manage.py runserver 127.0.0.1:8000
+    ./manage.py runserver
 
-and point your browser to that location.
+and point your browser to 127.0.0.1:8000.
 
 
 Manual Setup
@@ -34,15 +30,17 @@ Run::
 
     ./manage.py syncdb
 
-to initialize the example database
+to initialize the example database. Then run the migrations (requires South_)::
 
-::
+    ./manage.py migrate codereview
 
-./manage.py runserver 127.0.0.1:8000
+Finally, run the development server::
+
+    ./manage.py runserver
 
 will run Rietveld in development mode.
 
-Creating a code review
+Creating and updating a code review
 ======================
 #. Run the server (./manage.py runserver)
 #. Make a change to a git repo (even this one! maybe just this file...). Leave the changes unstaged.
@@ -86,3 +84,5 @@ Adding Users
 
 Go to /admin URL and login as a super user. Users may change password by
 going to /admin/password_change URL.
+
+.. _South: http://south.aeracode.org/

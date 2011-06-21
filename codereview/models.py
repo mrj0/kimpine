@@ -32,6 +32,9 @@ from django.core.cache import cache
 from django.db import models
 from django.contrib.auth.models import User
 
+# South imports
+from south.modelsinspector import add_introspection_rules
+
 
 CONTEXT_CHOICES = (3, 10, 25, 50, 75, 100)
 
@@ -54,6 +57,8 @@ class MultiEmailField(models.TextField):
     if value == '':
       return []
     return value.split(',')
+
+add_introspection_rules([], ["^codereview\.models\.MultiEmailField"])
 
 ### Issues, PatchSets, Patches, Contents, Comments, Messages ###
 

@@ -1,7 +1,7 @@
 default:
 	@echo "Run 'make all' to fetch required sources to run this example."
 
-all: dev.db
+all: dev.db migrate
 	@echo "Run './manage.py runserver 127.0.0.1:8000' to run Rietveld."
 
 clean: clean_db clean_pyc
@@ -14,3 +14,6 @@ clean_pyc:
 
 dev.db:
 	./manage.py syncdb
+
+migrate:
+	./manage.py migrate codereview

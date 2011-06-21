@@ -95,6 +95,7 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'rietveld_helper',
     'codereview',
+    'south',
 )
 
 AUTH_PROFILE_MODULE = 'codereview.Account'
