@@ -998,15 +998,10 @@ def starred(request):
   """/starred - Show a list of issues starred by the current user."""
 
   account = models.Account.get_account_for_user(request.user)
-  stars = account.stars
-  if not stars:
-    issues = []
-  else:
-    issues = [issue for issue in models.Issue.objects.filter(id__in=[i.id for i in stars])
-                    if _can_view_issue(request.user, issue)]
-    _load_users_for_issues(issues)
-    _optimize_draft_counts(request.user, issues)
-  return respond(request, 'starred.html', {'issues': issues})
+  stars = [issue for issue in account.stars.all() if _can_view_issue(request.user, issue)]
+  _load_users_for_issues(stars)
+  _optimize_draft_counts(request.user, stars)
+  return respond(request, 'starred.html', {'issues': stars})
 
 def _load_users_for_issues(issues):
   """Load all user links for a list of issues in one go."""
@@ -2876,11 +2871,8 @@ def star(request):
   """Add a star to an Issue."""
   account = models.Account.get_account_for_user(request.user)
   account.user_has_selected_nickname()  # This will preserve account.fresh.
-  if account.stars is None:
-    account.stars = []
-  if request.issue not in account.stars:
-    account.stars.append(request.issue)
-    account.save()
+  if request.issue not in account.stars.all():
+    account.stars.add(request.issue)
   return respond(request, 'issue_star.html', {'issue': request.issue})
 
 
@@ -2892,11 +2884,8 @@ def unstar(request):
   """Remove the star from an Issue."""
   account = models.Account.get_account_for_user(request.user)
   account.user_has_selected_nickname()  # This will preserve account.fresh.
-  if account.stars is None:
-    account.stars = []
-  if request.issue in account.stars:
+  if request.issue in account.stars.all():
     account.stars.remove(request.issue)
-    account.save()
   return respond(request, 'issue_star.html', {'issue': request.issue})
 
 

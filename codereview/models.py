@@ -109,8 +109,8 @@ class Issue(models.Model):
       self._is_starred = False
     else:
       try:
-        account = Account.objects.get(user=user) #TODO(kle): remove id after refactor
-        self._is_starred = self in account.stars
+        account = Account.objects.get(user=user)
+        self._is_starred = self in account.stars.all()
       except Account.DoesNotExist:
         self._is_starred = False
     return self._is_starred
@@ -522,7 +522,7 @@ class Account(models.Model):
   default_column_width = models.IntegerField(default=engine.DEFAULT_COLUMN_WIDTH)
   created = models.DateTimeField(auto_now_add=True)
   modified = models.DateTimeField(auto_now=True)
-  stars = MultiForeignKeyField(Issue)  # Issue ids of all starred issues
+  stars = models.ManyToManyField(Issue)
   fresh = models.BooleanField()
   uploadpy_hint = models.BooleanField(default=True)
   notify_by_email = models.BooleanField(default=True)
