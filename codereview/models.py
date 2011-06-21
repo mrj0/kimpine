@@ -267,7 +267,7 @@ class Patch(models.Model):
   patched_content = models.ForeignKey(Content, related_name='patch2_set', null=True, blank=True)
   is_binary = models.BooleanField(default=False)
   # Ids of patchsets that have a different version of this file.
-  delta = MultiForeignKeyField(PatchSet,null=True, blank=True)
+  delta = models.ManyToManyField(PatchSet, related_name='deltas')
   delta_calculated = models.BooleanField(default=False)
 
   _lines = None

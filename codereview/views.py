@@ -1603,7 +1603,7 @@ def _get_patchset_info(request, patchset_id):
             # on upload because we're already doing too much processing there.
             # NOTE: this function will clear out patchset.data to reduce
             # memory so don't ever call patchset.put() after calling it.
-            patch.delta = _calculate_delta(patch, patchset_id, patchsets)
+            patch.delta.add(*_calculate_delta(patch, patchset_id, patchsets))
             patch.delta_calculated = True
             # A multi-entity put would be quicker, but it fails when the
             # patches have content that is large.  App Engine throws
@@ -1623,7 +1623,7 @@ def _get_patchset_info(request, patchset_id):
         patch.text = None
         patch._lines = None
         patch.parsed_deltas = []
-        for delta in patch.delta:
+        for delta in patch.delta.all():
           patch.parsed_deltas.append([patchset_mapping[delta], delta])
   # Reduce memory usage (see above comment).
   for patchset in patchsets:
@@ -1785,28 +1785,9 @@ def delete_patchset(request):
   for patchset in patchsets_after:
     for patch in patchset.patch_set.all():
       if patch.delta_calculated:
-        if ps_delete in patch.delta:
-          patches.append(patch)
-  _patchset_delete(ps_delete, patches)
+        if ps_delete in patch.delta.all():
+          patch.delta.remove(ps_delete)
   return HttpResponseRedirect(reverse(show, args=[issue.id]))
-
-
-def _patchset_delete(ps_delete, patches):
-  """Transactional helper for delete_patchset.
-
-  Args:
-    ps_delete: The patchset to be deleted.
-    patches: Patches that have delta against patches of ps_delete.
-
-  """
-  tbp = []
-  for patch in patches:
-    patch.delta.remove(ps_delete)
-    tbp.append(patch)
-  for obj in tbp:
-    obj.save()
-  # delete cascades to Patch and Comment
-
 
 @post_required
 @issue_editor_required
@@ -2442,13 +2423,13 @@ def _add_next_prev2(user, ps_left, ps_right, patch_right):
       if not found_patch:
           last_patch = p
           if ((p.num_comments > 0 or p.num_drafts > 0) and
-              ps_left in p.delta):
+              ps_left in p.delta.all()):
             last_patch_with_comment = p
       else:
           if next_patch is None:
             next_patch = p
           if ((p.num_comments > 0 or p.num_drafts > 0) and
-              ps_left in p.delta):
+              ps_left in p.delta.all()):
             next_patch_with_comment = p
             # safe to stop scanning now because the next with out a comment
             # will already have been filled in by some earlier patch
