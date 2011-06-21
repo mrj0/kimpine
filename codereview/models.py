@@ -55,30 +55,6 @@ class MultiEmailField(models.TextField):
       return []
     return value.split(',')
 
-
-class MultiForeignKeyField(models.TextField):
-
-  __metaclass__ = models.SubfieldBase
-
-  def __init__(self, submodel, *args, **kwargs):
-    self.submodel = submodel
-    super(MultiForeignKeyField, self).__init__(*args, **kwargs)
-
-  def get_db_prep_value(self, value):
-    if value is None:
-      return value
-    return ','.join(str(obj.id) for obj in value)
-
-  def to_python(self, value):
-    if type(value) == list:
-      return value
-    if value is None:
-      return value
-    if value == '':
-      return []
-    return (self.submodel.objects.get(id=int(id)) for id in value.split(','))
-
-
 ### Issues, PatchSets, Patches, Contents, Comments, Messages ###
 
 
