@@ -82,7 +82,8 @@ protection is disabled in this example!
 Adding Users
 ============
 
-Go to /admin URL and login as a super user. Users may change password by
-going to /admin/password_change URL.
+Go to /admin URL and login as a super user. Users may change password by logging in
+and clicking the 'Change Password' link at the top of the page or visiting
+/accounts/change_password .
 
 .. _South: http://south.aeracode.org/
