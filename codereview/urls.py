@@ -17,6 +17,9 @@
 # NOTE: Must import *, since Django looks for things here, e.g. handler500.
 from django.conf.urls.defaults import *
 import django.views.defaults
+from django.contrib import admin
+
+admin.autodiscover()
 
 from codereview import feeds
 
@@ -86,6 +89,12 @@ feed_dict = {
 
 urlpatterns += patterns(
     '',
+    (r'^static/(?P<path>.*)$', 'django.views.static.serve', {'document_root': 'static/'}),
+    (r'^accounts/login/$', 'django.contrib.auth.views.login'),
+    (r'^accounts/logout/$', 'django.contrib.auth.views.logout_then_login'),
+    (r'^accounts/change_password/$', 'django.contrib.auth.views.password_change',
+      {'post_change_redirect': '/'}),
+    ('^admin/', include(admin.site.urls)),
     (r'^rss/(?P<url>.*)$', 'django.contrib.syndication.views.feed',
      {'feed_dict': feed_dict}),
     )

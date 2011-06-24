@@ -72,7 +72,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     # Keep in mind, that CSRF protection is DISABLED in this example!
-    'rietveld_helper.middleware.DisableCSRFMiddleware',
+    'codereview.middleware.DisableCSRFMiddleware',
     'django.middleware.doc.XViewMiddleware',
 )
 
@@ -81,7 +81,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'django.core.context_processors.request',
 )
 
-ROOT_URLCONF = 'rietveld_helper.urls'
+ROOT_URLCONF = 'codereview.urls'
 
 TEMPLATE_DIRS = (
     os.path.join(os.path.dirname(__file__), 'templates'),
@@ -93,7 +93,6 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.sites',
     'django.contrib.admin',
-    'rietveld_helper',
     'codereview',
     'south',
 )
