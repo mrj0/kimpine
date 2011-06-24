@@ -292,9 +292,6 @@ class SettingsForm(forms.Form):
                                     max_value=engine.MAX_COLUMN_WIDTH)
   notify_by_email = forms.BooleanField(required=False,
                                        widget=forms.HiddenInput())
-  notify_by_chat = forms.BooleanField(
-    required=False,
-    help_text='You must accept the invite for this to work.')
 
   def __init__(self, *args, **kwargs):
     self.request = kwargs.pop('request', None)
@@ -3021,7 +3018,6 @@ def settings(request):
                                  'context': default_context,
                                  'column_width': default_column_width,
                                  'notify_by_email': account.notify_by_email,
-                                 'notify_by_chat': account.notify_by_chat,
                                  },
                         request=request)
     return respond(request, 'settings.html', {'form': form})
