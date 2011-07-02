@@ -3,7 +3,8 @@ Description
 This examples shows how to run Rietveld - the code review tool available
 at http://codereview.appspot.com/.
 
-Requires: Django 1.3, Python 2.6+, South_
+Requires: Django 1.3, Python 2.6+, South_, django-debug-toolbar
+Refer to requirements.txt for the whole list.
 
 
 Using the Makefile
