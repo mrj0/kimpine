@@ -200,18 +200,18 @@ def _ShortenBuffer(buffer, context):
     skip = len(buffer) - 2*context
     expand_link = []
     if skip > 3*context:
-      expand_link.append(('<a href="javascript:M_expandSkipped(%(before)d, '
-                          '%(after)d, \'t\', %(skip)d)">'
-                          'Expand %(context)d before'
-                          '</a> | '))
-    expand_link.append(('<a href="javascript:M_expandSkipped(%(before)d, '
-                        '%(after)d, \'a\', %(skip)d)">Expand all</a>'))
+      expand_link.append('<a href="javascript:M_expandSkipped(%(before)d, '
+                         '%(after)d, \'t\', %(skip)d)">'
+                         'Expand %(context)d before'
+                         '</a> | ')
+    expand_link.append('<a href="javascript:M_expandSkipped(%(before)d, '
+                       '%(after)d, \'a\', %(skip)d)">Expand all</a>')
     if skip > 3*context:
-      expand_link.append((' | '
-                          '<a href="javascript:M_expandSkipped(%(before)d, '
-                          '%(after)d, \'b\', %(skip)d)">'
-                          'Expand %(context)d after'
-                          '</a>'))
+      expand_link.append(' | '
+                         '<a href="javascript:M_expandSkipped(%(before)d, '
+                         '%(after)d, \'b\', %(skip)d)">'
+                         'Expand %(context)d after'
+                         '</a>')
     expand_link = ''.join(expand_link) % {'before': last_id+1,
                                           'after': last_id+skip,
                                           'skip': last_id,
