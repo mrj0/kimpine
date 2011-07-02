@@ -2690,7 +2690,7 @@ function M_fillTableCell_(attrs, text) {
 function M_expandSkipped(id_before, id_after, where, id_skip) {
   links = document.getElementById('skiplinks-'+id_skip).getElementsByTagName('a');
   for (var i=0; i<links.length; i++) {
-	links[i].href = '#skiplinks-'+id_skip;
+    links[i].href = '#skiplinks-'+id_skip;
   }
   tr = document.getElementById('skip-'+id_skip);
   var httpreq = M_getXMLHttpRequest();
@@ -2712,7 +2712,7 @@ function M_expandSkipped(id_before, id_after, where, id_skip) {
     if (httpreq.readyState == 4 && !aborted) {
       if (httpreq.status == 200) {
         response = eval('('+httpreq.responseText+')');
-	var last_row = null;
+        var last_row = null;
         for (var i=0; i<response.length; i++) {
           var data = response[i];
           var row = document.createElement("tr");
@@ -2726,17 +2726,17 @@ function M_expandSkipped(id_before, id_after, where, id_skip) {
           if ( where == 't' || where == 'a') {
             tr.parentNode.insertBefore(row, tr);
           } else {
-	    if (last_row) {
+            if (last_row) {
               tr.parentNode.insertBefore(row, last_row.nextSibling);
-	    } else {
-	      tr.parentNode.insertBefore(row, tr.nextSibling);
-	    }
+            } else {
+              tr.parentNode.insertBefore(row, tr.nextSibling);
+            }
           }
           var left = M_fillTableCell_(data[1][0][0], data[1][0][1]);
           var right = M_fillTableCell_(data[1][1][0], data[1][1][1]);
           row.appendChild(left);
           row.appendChild(right);
-	  last_row = row;
+          last_row = row;
         }
         var curr = document.getElementById('skipcount-'+id_skip);
         var new_count = parseInt(curr.innerHTML)-response.length/2;
@@ -2749,46 +2749,46 @@ function M_expandSkipped(id_before, id_after, where, id_skip) {
             var new_after = id_after;
           }
           curr.innerHTML = new_count;
-	  html = '';
-	  if ( new_count > 3*context ) {
-	    html += '<a href="javascript:M_expandSkipped('+new_before;
-            html += ','+new_after+',\'t\', '+id_skip+');">';
-	    html += 'Expand '+context+' before';
-	    html += '</a> | ';
-	  }
-	  html += '<a href="javascript:M_expandSkipped('+new_before;
-	  html += ','+new_after+',\'a\','+id_skip+');">Expand all</a>';
+          html = '';
           if ( new_count > 3*context ) {
-	    var val = parseInt(new_after);
+            html += '<a href="javascript:M_expandSkipped('+new_before;
+            html += ','+new_after+',\'t\', '+id_skip+');">';
+            html += 'Expand '+context+' before';
+            html += '</a> | ';
+          }
+          html += '<a href="javascript:M_expandSkipped('+new_before;
+          html += ','+new_after+',\'a\','+id_skip+');">Expand all</a>';
+          if ( new_count > 3*context ) {
+            var val = parseInt(new_after);
             html += ' | <a href="javascript:M_expandSkipped('+new_before;
             html += ','+val+',\'b\','+id_skip+');">';
-	    html += 'Expand '+context+' after';
-	    html += '</a>';
+            html += 'Expand '+context+' after';
+            html += '</a>';
           }
           document.getElementById('skiplinks-'+(id_skip)).innerHTML = html;
-	  var loading_node = document.getElementById('skiploading-'+id_skip);
-	  loading_node.style.visibility = 'hidden';
+          var loading_node = document.getElementById('skiploading-'+id_skip);
+          loading_node.style.visibility = 'hidden';
         } else {
           tr.parentNode.removeChild(tr);
         }
-	hookState.updateHooks();
+        hookState.updateHooks();
         if (hookState.hookPos != -2 &&
-	    M_isElementVisible(window, hookState.indicator)) {
-	  // Restore indicator position on screen, but only if the indicator
-	  // is visible. We don't know if we have to scroll up or down to
-	  // make the indicator visible. Therefore the current hook is
-	  // internally set to the previous hook and
-	  // then gotoNextHook() does everything needed to end up with a
-	  // clean hookState and the indicator visible on screen.
+            M_isElementVisible(window, hookState.indicator)) {
+          // Restore indicator position on screen, but only if the indicator
+          // is visible. We don't know if we have to scroll up or down to
+          // make the indicator visible. Therefore the current hook is
+          // internally set to the previous hook and
+          // then gotoNextHook() does everything needed to end up with a
+          // clean hookState and the indicator visible on screen.
           hookState.hookPos = hookState.hookPos - 1;
-	  hookState.gotoNextHook();
+          hookState.gotoNextHook();
         }
       } else {
-	msg = '<td colspan="2" align="center"><span style="color:red;">';
-	msg += 'An error occurred ['+httpreq.status+']. ';
-	msg += 'Please report.';
-	msg += '</span></td>';
-	tr.innerHTML = msg;
+        msg = '<td colspan="2" align="center"><span style="color:red;">';
+        msg += 'An error occurred ['+httpreq.status+']. ';
+        msg += 'Please report.';
+        msg += '</span></td>';
+        tr.innerHTML = msg;
       }
     }
   }
