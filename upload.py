@@ -1250,19 +1250,25 @@ class GitVCS(VersionControlSystem):
       else:
         extra_args = [self.options.revision] + extra_args
 
-    #add commit messages to issue message
+    # add commit messages to issue message
+    # we're flipping the ../... here because of the difference in how gitrevisions is calculated for
+    # git log and how it's used for git diff
     log_arg = None
     if extra_args:
       if len(extra_args) == 1:
         if ".." in extra_args[0]:
-          log_arg = extra_args[0]
+          if "..." in extra_args[0]:
+            log_arg = extra_args[0].replace("...", "..")
+          else:
+            log_arg = extra_args[0].replace("..", "...")
         else:
-          log_arg = extra_args[0] + ".."
+          log_arg = extra_args[0] + "..."
       elif len(extra_args) == 2:
+        # they probably intended to do ``A..B`` and not ``A.. B``
         if ".." in extra_args[0] or ".." in extra_args[1]:
           log_arg = extra_args[0] + extra_args[1]
         else:
-          log_arg = extra_args[0] + ".." + extra_args[1]
+          log_arg = extra_args[0] + "..." + extra_args[1]
 
     env = os.environ.copy()
 
