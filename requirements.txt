@@ -1,3 +1,17 @@
 Django==1.3
-South==0.7.3
 django-debug-toolbar==0.8.5
+
+# for DB migrations
+South==0.7.3
+
+# replacement dev server and related addons
+-e git+git://github.com/dcramer/django-devserver#egg=django-devserver
+#django-devserver==0.1.7
+Werkzeug==0.6.2
+-e svn+https://guppy-pe.svn.sourceforge.net/svnroot/guppy-pe/trunk/guppy#egg=guppy
+#guppy==0.1.9 
+line-profiler==1.0b2
+sqlparse==0.1.2
+
+# for syntax highlighting
+Pygments==1.4
