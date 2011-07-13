@@ -520,12 +520,12 @@ def _RenderDiffInternal(old_buff, new_buff, ndigits, tag, frag_list,
 
     frags = frag_list[i]
     # Render left text column
-    frags.append(_RenderDiffColumn(old_patch, old_valid, tag, ndigits,
+    frags.append(_RenderDiffColumn(old_valid, tag, ndigits,
                                    old_lineno, obegin, oend, old_intra_diff,
                                    do_ir_diff, old_has_newline, 'old'))
 
     # Render right text column
-    frags.append(_RenderDiffColumn(new_patch, new_valid, tag, ndigits,
+    frags.append(_RenderDiffColumn(new_valid, tag, ndigits,
                                    new_lineno, nbegin, nend, new_intra_diff,
                                    do_ir_diff, new_has_newline, 'new'))
 
@@ -572,7 +572,7 @@ def _RenderDiffInternal(old_buff, new_buff, ndigits, tag, frag_list,
     yield tg, ''.join(frags)
 
 
-def _RenderDiffColumn(patch, line_valid, tag, ndigits, lineno, begin, end,
+def _RenderDiffColumn(line_valid, tag, ndigits, lineno, begin, end,
                       intra_diff, do_ir_diff, has_newline, prefix):
   """Helper function for _RenderDiffInternal().
 
