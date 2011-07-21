@@ -879,10 +879,10 @@ def _paginate_issues(page_url,
     'first': offset + 1,
     'nexttext': 'Older',
   }
-  # Fetch one more to see if there should be a 'next' link
-  issues = query[offset:limit+1]
-  if len(issues) > limit:
-    del issues[limit:]
+
+  num_issues = query[offset:].count()
+  issues = query[offset:limit]
+  if num_issues > limit:
     params['next'] = _url(page_url, offset=offset + limit, **nav_parameters)
   params['last'] = len(issues) > 1 and offset+len(issues) or None
   if offset > 0:
