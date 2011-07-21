@@ -98,7 +98,6 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'codereview',
     'south',
-    'devserver',
     'debug_toolbar',
 )
 
@@ -106,19 +105,6 @@ AUTH_PROFILE_MODULE = 'codereview.Account'
 LOGIN_REDIRECT_URL = '/'
 
 UPLOAD_PY_SOURCE = os.path.join(os.path.dirname(__file__), 'upload.py')
-
-DEVSERVER_MODULES = (
-    'devserver.modules.sql.SQLRealTimeModule',
-    'devserver.modules.sql.SQLSummaryModule',
-    'devserver.modules.profile.ProfileSummaryModule',
-
-    # Modules not enabled by default
-    'devserver.modules.ajax.AjaxDumpModule',
-    'devserver.modules.profile.MemoryUseModule',
-    'devserver.modules.cache.CacheSummaryModule',
-    'devserver.modules.profile.LineProfilerModule',
-)
-
 
 DEBUG_TOOLBAR_PANELS = (
     'debug_toolbar.panels.version.VersionDebugPanel',
