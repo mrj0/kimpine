@@ -24,13 +24,11 @@ import datetime
 import email  # see incoming_mail()
 import email.utils
 import logging
-import md5
 import os
 import random
 import re
 import urllib
-from cStringIO import StringIO
-from xml.etree import ElementTree
+from hashlib import md5
 
 # Django imports
 # TODO(guido): Don't import classes/functions directly.
@@ -1235,7 +1233,7 @@ def upload_content(request):
     content.file_too_large = True
   else:
     data = form.get_uploaded_content()
-    checksum = md5.new(data).hexdigest()
+    checksum = md5(data).hexdigest()
     if checksum != request.POST.get('checksum'):
       content.is_bad = True
       content.save()

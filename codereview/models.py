@@ -50,7 +50,7 @@ class MultiEmailField(models.TextField):
 
   __metaclass__ = models.SubfieldBase
 
-  def get_db_prep_value(self, value):
+  def get_prep_value(self, value):
     if value is None:
       return value
     return ','.join(value)
