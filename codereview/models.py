@@ -16,12 +16,12 @@
 
 # Python imports
 import logging
-import md5
 import os
 import re
 import time
-from collections import namedtuple
 import base64
+from collections import namedtuple
+from hashlib import md5
 
 # Local imports
 import engine
@@ -711,7 +711,7 @@ class Account(models.Model):
     if not self.xsrf_secret:
       self.xsrf_secret = base64.b64encode(os.urandom(8))
       self.save()
-    m = md5.new(self.xsrf_secret)
+    m = md5(self.xsrf_secret)
     email_str = self.email.lower()
     if isinstance(email_str, unicode):
       email_str = email_str.encode('utf-8')
