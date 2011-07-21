@@ -35,6 +35,10 @@ to initialize the example database. Then run the migrations (requires South_)::
 
     ./manage.py migrate codereview
 
+gather all of the static files into a single ``static/`` folder::
+
+    ./manage.py collectstatic
+
 Finally, run the development server::
 
     ./manage.py runserver

@@ -439,7 +439,6 @@ def respond(request, template, params=None):
   params['counter'] = counter
   params['user'] = request.user
   params['is_admin'] = request.user.is_superuser
-  params['media_url'] = django_settings.MEDIA_URL
   full_path = request.get_full_path().encode('utf-8')
   if request.user.is_anonymous():
     params['sign_in'] = _create_login_url(full_path)

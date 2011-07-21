@@ -18,6 +18,8 @@
 from django.conf.urls.defaults import *
 import django.views.defaults
 from django.contrib import admin
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+import settings
 
 admin.autodiscover()
 
@@ -31,7 +33,7 @@ urlpatterns = patterns(
     (r'^starred$', 'starred'),
     (r'^new$', 'new'),
     (r'^upload$', 'upload'),
-    (r'^(?P<issue_id>\d+)$', 'show', {}, 'show_bare_issue_number'),
+    url(r'^(?P<issue_id>\d+)$', 'show', name='show_bare_issue_number'),
     (r'^(?P<issue_id>\d+)/(show)?$', 'show'),
     (r'^(?P<issue_id>\d+)/add$', 'add'),
     (r'^(?P<issue_id>\d+)/edit$', 'edit'),
@@ -48,13 +50,13 @@ urlpatterns = patterns(
     (r'^(?P<issue_id>\d+)/diff_skipped_lines/(?P<patchset_id>\d+)/(?P<patch_id>\d+)/(?P<id_before>\d+)/'
         r'(?P<id_after>\d+)/(?P<where>[tba])/(?P<column_width>\d+)$',
      'diff_skipped_lines'),
-    (r'^(?P<issue_id>\d+)/diff_skipped_lines/(?P<patchset_id>\d+)/(?P<patch_id>\d+)/$',
-     django.views.defaults.page_not_found, {}, 'diff_skipped_lines_prefix'),
+    url(r'^(?P<issue_id>\d+)/diff_skipped_lines/(?P<patchset_id>\d+)/(?P<patch_id>\d+)/$',
+     django.views.defaults.page_not_found, name='diff_skipped_lines_prefix'),
     (r'^(?P<issue_id>\d+)/diff2_skipped_lines/(?P<ps_left_id>\d+):(?P<ps_right_id>\d+)/(?P<patch_id>\d+)/'
         r'(?P<id_before>\d+)/(?P<id_after>\d+)/(?P<where>[tba])/(?P<column_width>\d+)$',
      'diff2_skipped_lines'),
-    (r'^(?P<issue_id>\d+)/diff2_skipped_lines/(?P<ps_left_id>\d+):(?P<ps_right_id>\d+)/(?P<column_width>\d+)/$',
-     django.views.defaults.page_not_found, {}, 'diff2_skipped_lines_prefix'),
+    url(r'^(?P<issue_id>\d+)/diff2_skipped_lines/(?P<ps_left_id>\d+):(?P<ps_right_id>\d+)/(?P<column_width>\d+)/$',
+     django.views.defaults.page_not_found, name='diff2_skipped_lines_prefix'),
     (r'^(?P<issue_id>\d+)/upload_content/(?P<patchset_id>\d+)/(?P<patch_id>\d+)$', 'upload_content'),
     (r'^(?P<issue_id>\d+)/upload_patch/(?P<patchset_id>\d+)$', 'upload_patch'),
     (r'^(?P<issue_id>\d+)/description$', 'description'),
@@ -89,7 +91,6 @@ feed_dict = {
 
 urlpatterns += patterns(
     '',
-    (r'^static/(?P<path>.*)$', 'django.views.static.serve', {'document_root': 'static/'}),
     (r'^accounts/login/$', 'django.contrib.auth.views.login'),
     (r'^accounts/logout/$', 'django.contrib.auth.views.logout_then_login'),
     (r'^accounts/change_password/$', 'django.contrib.auth.views.password_change',
@@ -98,3 +99,6 @@ urlpatterns += patterns(
     (r'^rss/(?P<url>.*)$', 'django.contrib.syndication.views.feed',
      {'feed_dict': feed_dict}),
     )
+
+if settings.DEBUG:
+  urlpatterns += staticfiles_urlpatterns()

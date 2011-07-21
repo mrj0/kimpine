@@ -416,10 +416,10 @@ function M_toggleSection(id) {
 
   if (sectionStyle.display == "none") {
     sectionStyle.display = "";
-    pointerStyle.backgroundImage = "url('" + media_url + "opentriangle.gif')";
+    pointerStyle.backgroundImage = "url('" + static_url + "opentriangle.gif')";
   } else {
     sectionStyle.display = "none";
-    pointerStyle.backgroundImage = "url('" + media_url + "closedtriangle.gif')";
+    pointerStyle.backgroundImage = "url('" + static_url + "closedtriangle.gif')";
   }
 }
 

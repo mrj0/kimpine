@@ -42,7 +42,7 @@
 
     {%for patch in patchset.patches%}
       <tr name="patch">
-        <td class="first" width="14"><img src="{{media_url}}closedtriangle.gif" 
+        <td class="first" width="14"><img src="{{STATIC_URL}}closedtriangle.gif"
     style="visibility: hidden;" width="12" height="9" /></td>
         <td>{%if patch.status%}{{patch.status}}{%endif%}</td>
         <td>

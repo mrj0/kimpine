@@ -10,10 +10,10 @@
     {%endblock%}
     Code Review
   </title>
-  <link rel="icon" href="{{media_url}}favicon.ico" />
-  <link type="text/css" rel="stylesheet" href="{{media_url}}styles.css" />
+  <link rel="icon" href="{{STATIC_URL}}favicon.ico" />
+  <link type="text/css" rel="stylesheet" href="{{STATIC_URL}}styles.css" />
   <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Inconsolata">
-  <script type="text/javascript" src="{{media_url}}script.js"></script>
+  <script type="text/javascript" src="{{STATIC_URL}}script.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
   <link rel="alternate" type="application/atom+xml"
    	title="Recent Issues"
@@ -45,7 +45,7 @@
 var xsrfToken = '{{xsrf_token}}';
 var helpDisplayed = false;
 document.onclick = M_clickCommon;
-var media_url = "{{media_url}}";
+var static_url = "{{STATIC_URL}}";
 var base_url = "{%url codereview.views.index%}";
 {%if issue%}
 var publish_link = "{%url codereview.views.publish issue.id%}";
@@ -211,13 +211,13 @@ var publish_link = "{%url codereview.views.publish issue.id%}";
 <p></p>
 <div style="float: left;">
   <a target="_blank" href="http://code.google.com/appengine/"><img border="0"
-   src="{{media_url}}appengine-noborder-120x30.gif"
+   src="{{STATIC_URL}}appengine-noborder-120x30.gif"
    alt="Powered by Google App Engine" /></a>
 </div>
 
 <div class="extra" style="font-size: 9pt; float: right; text-align: right;">
   <div style="height:14px;">
-  <img src="{{media_url}}rss.gif" alt="RSS Feeds" width="14" height="14"
+  <img src="{{STATIC_URL}}rss.gif" alt="RSS Feeds" width="14" height="14"
        align="top" />
   <a href="{%url django.contrib.syndication.views.feed url="all"%}">Recent Issues</a>
   {%if user.is_authenticated%}

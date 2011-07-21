@@ -1,11 +1,11 @@
 <span id="issue-star-{{issue.id}}">
   {%if issue|is_starred:user%}
     <a href="javascript:M_removeIssueStar({{issue.id}})">
-      <img src="{{media_url}}star-lite.gif" width="15" height="15" border="0"></a>
+      <img src="{{STATIC_URL}}star-lite.gif" width="15" height="15" border="0"></a>
   {%else%}
     {%if user.is_authenticated%}
       <a href="javascript:M_addIssueStar({{issue.id}})">
-	<img src="{{media_url}}star-dark.gif" width="15" height="15" border="0"></a>
+	<img src="{{STATIC_URL}}star-dark.gif" width="15" height="15" border="0"></a>
     {%endif%}
   {%endif%}
 </span>
