@@ -2094,10 +2094,11 @@ def _get_diff_table_rows(request, patch, context, column_width):
 
   # Possible engine.FetchErrors are handled in diff() and diff_skipped_lines().
   content = request.patch.get_content()
+  patched_content = request.patch.get_patched_content()
 
-  rows = list(engine.RenderDiffTableRows(request, content.lines,
-                                         chunks, patch,
-                                         context=context,
+  rows = list(engine.RenderDiffTableRows(request, content.highlighted_lines,
+                                         patched_content.highlighted_lines,
+                                         patch, context=context,
                                          colwidth=column_width))
   if rows and rows[-1] is None:
     del rows[-1]
@@ -2112,7 +2113,6 @@ def _get_diff_table_rows(request, patch, context, column_width):
       content.delete()
       request.patch.content = None
       request.patch.save()
-
   return rows
 
 
@@ -2187,13 +2187,8 @@ def _get_skipped_lines_response(rows, id_before, id_after, where, context):
         break
 
   # Create a usable structure for the JS part
-  response = []
   response_rows =  [_strip_invalid_xml(r) for r in response_rows]
-  dom = ElementTree.parse(StringIO('<div>%s</div>' % "".join(response_rows)))
-  for node in dom.getroot().getchildren():
-    content = [[x.items(), x.text] for x in node.getchildren()]
-    response.append([node.items(), content])
-  return response
+  return response_rows
 
 
 def _get_diff2_data(request, ps_left_id, ps_right_id, patch_id, context,
@@ -2226,9 +2221,9 @@ def _get_diff2_data(request, ps_left_id, ps_right_id, patch_id, context,
       new_content_left = patch_left.get_patched_content()
     except engine.FetchError, err:
       return HttpResponseNotFound(str(err))
-    lines_left = new_content_left.lines
+    lines_left = new_content_left.highlighted_lines
   elif patch_right:
-    lines_left = patch_right.get_content().lines
+    lines_left = patch_right.get_content().highlighted_lines
   else:
     lines_left = []
 
@@ -2237,9 +2232,9 @@ def _get_diff2_data(request, ps_left_id, ps_right_id, patch_id, context,
       new_content_right = patch_right.get_patched_content()
     except engine.FetchError, err:
       return HttpResponseNotFound(str(err))
-    lines_right = new_content_right.lines
+    lines_right = new_content_right.highlighted_lines
   elif patch_left:
-    lines_right = patch_left.get_content().lines
+    lines_right = patch_left.get_content().highlighted_lines
   else:
     lines_right = []
 

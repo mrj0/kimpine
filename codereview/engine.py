@@ -95,7 +95,7 @@ DEFAULT_COLUMN_WIDTH = 80
 MIN_COLUMN_WIDTH = 3
 MAX_COLUMN_WIDTH = 2000
 
-def RenderDiffTableRows(request, old_lines, chunks, patch,
+def RenderDiffTableRows(request, old_lines, new_lines, patch,
                         colwidth=DEFAULT_COLUMN_WIDTH, debug=False,
                         context=DEFAULT_CONTEXT):
   """Render the HTML table rows for a side-by-side diff for a patch.
@@ -114,7 +114,7 @@ def RenderDiffTableRows(request, old_lines, chunks, patch,
     pair of lines of the side-by-side diff, possibly including comments.
     Each yielded string may consist of several <tr> elements.
   """
-  rows = _RenderDiffTableRows(request, old_lines, chunks, patch,
+  rows = _RenderDiffTableRows(request, old_lines, new_lines, patch,
                               colwidth, debug)
   return _CleanupTableRowsGenerator(rows, context)
 
@@ -297,7 +297,7 @@ def _GetComments(request):
   return old_dict, new_dict
 
 
-def _RenderDiffTableRows(request, old_lines, chunks, patch,
+def _RenderDiffTableRows(request, old_lines, new_lines, patch,
                          colwidth=DEFAULT_COLUMN_WIDTH, debug=False):
   """Internal version of RenderDiffTableRows().
 
@@ -311,10 +311,9 @@ def _RenderDiffTableRows(request, old_lines, chunks, patch,
   new_dict = {}
   if patch:
     old_dict, new_dict = _GetComments(request)
-  old_max, new_max = _ComputeLineCounts(old_lines, chunks)
-  return _TableRowGenerator(patch, old_dict, old_max, 'old',
-                            patch, new_dict, new_max, 'new',
-                            patching.PatchChunks(old_lines, chunks),
+  return _TableRowGenerator(patch, old_dict, len(old_lines)+1, 'old',
+                            patch, new_dict, len(new_lines)+1, 'new',
+                            _GenerateTriples(old_lines, new_lines),
                             colwidth, debug, request)
 
 

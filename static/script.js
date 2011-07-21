@@ -2659,30 +2659,6 @@ function M_dashboardKeyDown(evt) {
   });
 }
 
-/**
- * Helper to fill a table cell element.
- * @param {Array} attrs An array of attributes to be applied
- * @param {String} text The content of the table cell
- * @return {Element}
- */
-function M_fillTableCell_(attrs, text) {
-  var td = document.createElement("td");
-  for (var j=0; j<attrs.length; j++) {
-    if (attrs[j][0] == "class" && M_isIE()) {
-      td.setAttribute("className", attrs[j][1]);
-    } else {
-      td.setAttribute(attrs[j][0], attrs[j][1]);
-    }
-  }
-  if (!text) text = "";
-  if (M_isIE()) {
-    td.innerText = text;
-  } else {
-    td.textContent = text;
-  }
-  return td;
-}
-
 /*
  * Function to request more context between diff chunks.
  * See _ShortenBuffer() in codereview/engine.py.
@@ -2714,15 +2690,7 @@ function M_expandSkipped(id_before, id_after, where, id_skip) {
         response = eval('('+httpreq.responseText+')');
         var last_row = null;
         for (var i=0; i<response.length; i++) {
-          var data = response[i];
-          var row = document.createElement("tr");
-          for (var j=0; j<data[0].length; j++) {
-            if (data[0][j][0] == "class" && M_isIE()) {
-              row.setAttribute("className", data[0][j][1]);
-            } else {
-              row.setAttribute(data[0][j][0], data[0][j][1]);
-            }
-          }
+          var row = $(response[i])[0]
           if ( where == 't' || where == 'a') {
             tr.parentNode.insertBefore(row, tr);
           } else {
@@ -2732,20 +2700,16 @@ function M_expandSkipped(id_before, id_after, where, id_skip) {
               tr.parentNode.insertBefore(row, tr.nextSibling);
             }
           }
-          var left = M_fillTableCell_(data[1][0][0], data[1][0][1]);
-          var right = M_fillTableCell_(data[1][1][0], data[1][1][1]);
-          row.appendChild(left);
-          row.appendChild(right);
           last_row = row;
         }
         var curr = document.getElementById('skipcount-'+id_skip);
-        var new_count = parseInt(curr.innerHTML)-response.length/2;
+        var new_count = parseInt(curr.innerHTML)-response.length;
         if ( new_count > 0 ) {
           if ( where == 'b' ) {
             var new_before = id_before;
-            var new_after = id_after-response.length/2;
+            var new_after = id_after-response.length;
           } else {
-            var new_before = id_before+response.length/2;
+            var new_before = id_before+response.length;
             var new_after = id_after;
           }
           curr.innerHTML = new_count;

@@ -31,9 +31,15 @@ import patching
 from django.core.cache import cache
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models import Q
 
 # South imports
 from south.modelsinspector import add_introspection_rules
+
+# Pygment imports
+from pygments import highlight
+from pygments.lexers import get_lexer_for_filename
+from pygments.formatters import HtmlFormatter
 
 
 CONTEXT_CHOICES = (3, 10, 25, 50, 75, 100)
@@ -219,6 +225,8 @@ class Content(models.Model):
 
   # parent => Patch
   text = models.TextField(null=True, blank=True)
+  # syntax highlighted text
+  highlighted_text = models.TextField(null=True, blank=True)
   data = models.TextField(null=True, blank=True)
   # checksum over text/data depending on content type
   checksum = models.TextField(null=True, blank=True)
@@ -226,12 +234,31 @@ class Content(models.Model):
   is_bad = models.BooleanField(default=False)
   file_too_large = models.BooleanField(default=False)
 
+  def save(self, *args, **kwargs):
+    if self.text:
+      try:
+        filename = kwargs.pop('filename')
+      except:
+        filename = Patch.objects.filter(Q(content=self) | Q(patched_content=self)).all()[0].filename
+      formatter = HtmlFormatter(nowrap=True, style='colorful')
+      lexer = get_lexer_for_filename(filename)
+      self.highlighted_text = highlight(self.text, lexer, formatter)
+    super(Content, self).save(*args, **kwargs)
+
   @property
   def lines(self):
     """The text split into lines, retaining line endings."""
     if not self.text:
       return []
     return self.text.splitlines(True)
+
+  @property
+  def highlighted_lines(self):
+    """The highlighted text split into lines, retaining line endings."""
+    if not self.highlighted_text:
+      return []
+    return self.highlighted_text.splitlines(True)
+
 
 
 class Patch(models.Model):
@@ -403,7 +430,7 @@ class Patch(models.Model):
       new_lines.extend(new)
     text = unicode(''.join(new_lines))
     patched_content = Content(text=text)
-    patched_content.save()
+    patched_content.save(filename=self.filename)
     self.patched_content = patched_content
     self.save()
     return patched_content

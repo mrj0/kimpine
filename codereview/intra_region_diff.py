@@ -152,16 +152,6 @@ def Break(text, offset=0, limit=80, brk="\n     ", tabsize=8, mark_tabs=False):
   # If mark_tabs is true, we retain one \t character as a marker during
   # expansion so that we later replace it with an HTML snippet.
   text = _ExpandTabs(text, offset, tabsize, mark_tabs)
-  # Perform wrapping.
-  if len(text) > limit - offset:
-    parts, text = [text[0:limit-offset]], text[limit-offset:]
-    while len(text) > limit:
-      parts.append(text[0:limit])
-      text = text[limit:]
-    parts.append(text);
-    text = brk.join([cgi.escape(p) for p in parts])
-  else:
-    text = cgi.escape(text)
   # Colorize tab markers
   text = text.replace("\t", TAB_TAG)
   if isinstance(text, unicode):
