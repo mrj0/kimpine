@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import datetime
-import md5
+from hashlib import md5
 
 from django.contrib.syndication.feeds import Feed
 from django.core.exceptions import ObjectDoesNotExist
@@ -49,7 +49,7 @@ class BaseFeed(Feed): #TODO(kle): fix feeds
     return 'rietveld'
 
   def item_guid(self, item):
-    return 'urn:md5:%s' % (md5.new(str(item.id)).hexdigest())
+    return 'urn:md5:%s' % (md5(str(item.id)).hexdigest())
 
   def item_link(self, item):
     if isinstance(item, models.PatchSet):
