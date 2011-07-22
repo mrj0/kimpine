@@ -1,7 +1,7 @@
 default:
 	@echo "Run 'make all' to prepare the code review app (create db, migrate, collect static files)"
 
-all: dev.db migrate static
+all: requirements dev.db migrate static
 	@echo "Run './manage.py runserver' to run Rietveld."
 
 clean: clean_db clean_pyc clean_static
@@ -14,6 +14,9 @@ clean_pyc:
 
 clean_static:
 	rm -rf static/
+
+requirements:
+	pip install -r requirements.txt
 
 dev.db:
 	./manage.py syncdb
