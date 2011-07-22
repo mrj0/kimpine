@@ -38,8 +38,9 @@ from south.modelsinspector import add_introspection_rules
 
 # Pygment imports
 from pygments import highlight
-from pygments.lexers import get_lexer_for_filename
+from pygments.lexers import get_lexer_for_filename, TextLexer
 from pygments.formatters import HtmlFormatter
+from pygments.util import ClassNotFound
 
 
 CONTEXT_CHOICES = (3, 10, 25, 50, 75, 100)
@@ -241,7 +242,10 @@ class Content(models.Model):
       except:
         filename = Patch.objects.filter(Q(content=self) | Q(patched_content=self)).all()[0].filename
       formatter = HtmlFormatter(nowrap=True, style='colorful')
-      lexer = get_lexer_for_filename(filename)
+      try:
+        lexer = get_lexer_for_filename(filename)
+      except ClassNotFound:
+        lexer = TextLexer()
       self.highlighted_text = highlight(self.text, lexer, formatter)
     super(Content, self).save(*args, **kwargs)
 
