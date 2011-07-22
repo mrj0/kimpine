@@ -7,6 +7,22 @@ Requires: Django 1.3, Python 2.6+, South_, django-debug-toolbar
 Refer to requirements.txt for the whole list.
 
 
+Differences between Kimpine and Rietveld
+========================================
+What Kimpine has:
+
+- Kimpine uses ``django.db.models`` rather than App Engine's db model, and so uses a query syntax
+  more familiar to Django developers.
+- Kimpine supports syntax highlighting in side-by-side diffs through Pygments_.
+- Flexible deployment, choose your own webserver (apache+mod_wsgi, uwsgi, gunicorn, etc.)!
+
+What Kimpine lacks:
+
+- Notify by chat
+- Integration with Google accounts
+- Adjustable column widths in diffs
+
+
 Using the Makefile
 ==================
 
@@ -91,4 +107,16 @@ Go to /admin URL and login as a super user. Users may change password by logging
 and clicking the 'Change Password' link at the top of the page or visiting
 /accounts/change_password .
 
+
+Alternatives
+============
+
+This project is a fork of andialbrecht_'s excellent django-gae2django_ project. It takes the approach
+of keeping the Rietveld codebase as intact as possible while providing a library that emulates the
+App Engine APIs.
+
+
 .. _South: http://south.aeracode.org/
+.. _django-gae2django: http://code.google.com/p/django-gae2django/
+.. _Pygments: http://pygments.org/
+.. _andialbrecht: https://github.com/andialbrecht
