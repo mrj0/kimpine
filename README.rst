@@ -112,9 +112,10 @@ and clicking the 'Change Password' link at the top of the page or visiting
 Alternatives
 ============
 
-This project is a fork of andialbrecht_'s excellent django-gae2django_ project. It takes the approach
+andialbrecht_'s django-gae2django_ also allows you to host Rietveld privately. It takes the approach
 of keeping the Rietveld codebase as intact as possible while providing a library that emulates the
-App Engine APIs.
+App Engine APIs. kimpine (which used gae2django as a starting point) takes the oppsite approach and
+tears out all code related to App Engine to replace it with native Django libraries.
 
 
 .. _South: http://south.aeracode.org/
