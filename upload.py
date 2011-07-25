@@ -1290,8 +1290,8 @@ class GitVCS(VersionControlSystem):
     # this by overriding the environment (but there is still a problem if the
     # git config key "diff.external" is used).
     if 'GIT_EXTERNAL_DIFF' in env: del env['GIT_EXTERNAL_DIFF']
-    return RunShell(["git", "diff", "--no-ext-diff", "--full-index", "-M"]
-                    + extra_args, env=env)
+    return RunShell(["git", "diff", "--no-ext-diff", "--full-index",
+                     "--ignore-submodules", "-M"] + extra_args, env=env)
 
   def GetUnknownFiles(self):
     status = RunShell(["git", "ls-files", "--exclude-standard", "--others"],
