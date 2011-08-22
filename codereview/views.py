@@ -3095,19 +3095,14 @@ def customized_upload_py(request):
   source = f.read()
   f.close()
 
-  # On a non-standard instance, the default review server is changed to the
-  # current hostname. This might give weird results when using versioned appspot
-  # URLs (eg. 1.latest.codereview.appspot.com), but this should only affect
-  # testing.
-  if request.META['HTTP_HOST'] != 'codereview.appspot.com':
-    review_server = request.META['HTTP_HOST']
-    if request.is_secure():
-      review_server = 'https://' + review_server
-    source = source.replace('DEFAULT_REVIEW_SERVER = "codereview.appspot.com"',
-                            'DEFAULT_REVIEW_SERVER = "%s"' % review_server)
+  review_server = request.META['HTTP_HOST']
+  if request.is_secure():
+    review_server = 'https://' + review_server
+
+  pattern = re.compile(r'^DEFAULT_REVIEW_SERVER\s?=\s?.*?$', re.M)
+  source = re.sub(pattern, 'DEFAULT_REVIEW_SERVER = "%s"' % review_server, source)
 
   return HttpResponse(source, content_type='text/x-python')
-
 
 def _create_login_url(redirect):
     return django_settings.LOGIN_URL+'?next='+redirect

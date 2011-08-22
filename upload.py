@@ -77,7 +77,7 @@ verbosity = 1
 # The account type used for authentication.
 # This line could be changed by the review server (see handler for
 # upload.py).
-AUTH_ACCOUNT_TYPE = "GOOGLE"
+AUTH_ACCOUNT_TYPE = "HOSTED"
 
 # URL of the default review server. As for AUTH_ACCOUNT_TYPE, this line could be
 # changed by the review server (see handler for upload.py).
