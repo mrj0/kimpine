@@ -23,6 +23,8 @@ from django.utils.feedgenerator import Atom1Feed
 import library
 import models
 
+from views import _get_or_none
+
 def _enforce_account_by_email(fn):
   def inner(self, obj):
     account = models.Account.get_account_for_email(obj.email)
@@ -113,7 +115,7 @@ class ReviewsFeed(BaseUserFeed):
 
   @_enforce_account_by_email
   def items(self, account):
-    return _rss_helper(Issue.objects.filter(closed=False, reviewers=account.email))
+    return _rss_helper(models.Issue.objects.filter(closed=False, reviewers=account.email))
 
 
 class ClosedFeed(BaseUserFeed):
@@ -121,7 +123,7 @@ class ClosedFeed(BaseUserFeed):
 
   @_enforce_account_by_email
   def items(self, account):
-    return _rss_helper(Issue.objects.filter(closed=True, owner=account.user))
+    return _rss_helper(models.Issue.objects.filter(closed=True, owner=account.user))
 
 
 class MineFeed(BaseUserFeed):
@@ -129,7 +131,7 @@ class MineFeed(BaseUserFeed):
 
   @_enforce_account_by_email
   def items(self, account):
-    return _rss_helper(Issue.objects.filter(closed=False, owner=account.user))
+    return _rss_helper(models.Issue.objects.filter(closed=False, owner=account.user))
 
 
 class AllFeed(BaseFeed):
@@ -168,5 +170,5 @@ class OneIssueFeed(BaseFeed):
 # Maximum number of issues reported by RSS feeds
 RSS_LIMIT = 20
 
-def _rss_helper(email, query_set):
+def _rss_helper(query_set, email=None):
   return query_set.filter(private=False).order_by('-modified')[:RSS_LIMIT]
