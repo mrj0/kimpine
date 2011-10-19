@@ -105,7 +105,7 @@ class Issue(models.Model):
 
   def user_can_edit(self, user):
     """Return true if the given user has permission to edit this issue."""
-    return user == self.owner
+    return user == self.owner or user.is_superuser
 
   def update_comment_count(self, n):
     """Increment the n_comments property by n.

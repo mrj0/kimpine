@@ -503,6 +503,7 @@ def _can_view_issue(user, issue):
   user_email = user.email.lower()
   return (not issue.private
           or issue.owner == user
+          or user.is_superuser
           or user_email in issue.cc
           or user_email in issue.reviewers)
 
