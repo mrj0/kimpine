@@ -609,6 +609,7 @@ def GetRpcServer(server, email=None, host_override=None, save_cookies=True,
   """
 
   rpc_server_class = HttpRpcServer
+  server = server.rstrip('/')
 
   # If this is the dev_appserver, use fake authentication.
   host = (host_override or server).lower()
