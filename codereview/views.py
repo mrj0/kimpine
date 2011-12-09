@@ -2045,7 +2045,7 @@ def _get_column_width_for_user(request):
 @patch_filename_required
 def diff(request):
   """/<issue>/diff/<patchset>/<patch> - View a patch as a side-by-side diff"""
-  if not request.patch.no_base_file:
+  if request.patch.no_base_file or not request.patch.content:
     # Can't show side-by-side diff since we don't have the base file.  Show the
     # unified diff instead.
     return patch_helper(request, 'diff')
