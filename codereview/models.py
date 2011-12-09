@@ -401,6 +401,8 @@ class Patch(models.Model):
     Raises:
       engine.FetchError: If there was a problem fetching it.
     """
+    if not self.content:
+      return None
     if self.content.is_bad:
       msg = 'Bad content. Try to upload again.'
       logging.warn('Patch.get_content: %s', msg)
